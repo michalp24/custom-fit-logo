@@ -52,6 +52,10 @@ export default {
 					DEFAULT: 'hsl(var(--card))',
 					foreground: 'hsl(var(--card-foreground))'
 				},
+				outline: 'hsl(var(--outline))',
+				'outline-fill': 'hsl(var(--outline-fill))',
+				canvas: 'hsl(var(--canvas))',
+				controls: 'hsl(var(--controls))',
 				sidebar: {
 					DEFAULT: 'hsl(var(--sidebar-background))',
 					foreground: 'hsl(var(--sidebar-foreground))',
