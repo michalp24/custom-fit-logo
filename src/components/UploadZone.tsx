@@ -2,8 +2,8 @@ import { useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Upload, Image, FileImage } from 'lucide-react';
 import { useLogoStore } from '@/store/logoStore';
-import { loadImageFromFile, parseSVGBounds, getAlphaTightBounds, vectorizeRasterImage, calculateFitScale } from '@/utils/logoProcessor';
-import { MASK_POINTS } from '@/utils/mask';
+import { loadImageFromFile, parseSVGBounds, getAlphaTightBounds, vectorizeRasterImage, fitIntoMask } from '@/utils/logoProcessor';
+import { MASK_POINTS, MASK_CENTER } from '@/utils/mask';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 
@@ -22,7 +22,7 @@ export function UploadZone() {
         // Handle SVG
         const svgText = await file.text();
         const bounds = parseSVGBounds(svgText);
-        const { scale, offsetX, offsetY } = calculateFitScale(bounds, MASK_POINTS, state.padding);
+        const { scale, offsetX, offsetY } = fitIntoMask(bounds, MASK_POINTS, MASK_CENTER, state.padding);
         
         setLogoData(svgText, 'svg');
         setTransform({ scale, offsetX, offsetY });
@@ -37,7 +37,7 @@ export function UploadZone() {
         const { canvas, bounds } = await getAlphaTightBounds(img);
         const svgString = await vectorizeRasterImage(canvas);
         
-        const { scale, offsetX, offsetY } = calculateFitScale(bounds, MASK_POINTS, state.padding);
+        const { scale, offsetX, offsetY } = fitIntoMask(bounds, MASK_POINTS, MASK_CENTER, state.padding);
         
         setLogoData(svgString, 'raster');
         setTransform({ scale, offsetX, offsetY });

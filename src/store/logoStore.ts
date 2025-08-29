@@ -85,11 +85,11 @@ export const useLogoStore = create<LogoState>((set, get) => ({
     if (!state.logoData) return;
     
     try {
-      const { parseSVGBounds, calculateFitScale } = require('../utils/logoProcessor');
-      const { MASK_POINTS } = require('../utils/mask');
+      const { parseSVGBounds, fitIntoMask } = require('../utils/logoProcessor');
+      const { MASK_POINTS, MASK_CENTER } = require('../utils/mask');
       
       const bounds = parseSVGBounds(state.logoData);
-      const { scale, offsetX, offsetY } = calculateFitScale(bounds, MASK_POINTS, state.padding);
+      const { scale, offsetX, offsetY } = fitIntoMask(bounds, MASK_POINTS, MASK_CENTER, state.padding);
       
       set({ scale, offsetX, offsetY });
     } catch (error) {

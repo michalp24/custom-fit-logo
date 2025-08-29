@@ -214,3 +214,115 @@ export function calculateFitScale(
   
   return { scale, offsetX, offsetY };
 }
+
+// Point-in-polygon test using ray casting algorithm (imported from mask.ts)
+function pointInPolygon(point: [number, number], polygon: [number, number][]): boolean {
+  const [x, y] = point;
+  let inside = false;
+  
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const [xi, yi] = polygon[i];
+    const [xj, yj] = polygon[j];
+    
+    if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) {
+      inside = !inside;
+    }
+  }
+  
+  return inside;
+}
+
+// Sample points around logo perimeter for containment testing
+function sampleLogoPerimeter(bounds: SVGBounds, scale: number, sampleCount: number = 40): [number, number][] {
+  const { minX, minY, width, height } = bounds;
+  const points: [number, number][] = [];
+  
+  // Sample along each edge
+  const edgeSamples = Math.ceil(sampleCount / 4);
+  
+  // Top edge
+  for (let i = 0; i < edgeSamples; i++) {
+    const t = i / (edgeSamples - 1);
+    points.push([(minX + t * width) * scale, minY * scale]);
+  }
+  
+  // Right edge
+  for (let i = 0; i < edgeSamples; i++) {
+    const t = i / (edgeSamples - 1);
+    points.push([(minX + width) * scale, (minY + t * height) * scale]);
+  }
+  
+  // Bottom edge
+  for (let i = 0; i < edgeSamples; i++) {
+    const t = i / (edgeSamples - 1);
+    points.push([(minX + (1 - t) * width) * scale, (minY + height) * scale]);
+  }
+  
+  // Left edge
+  for (let i = 0; i < edgeSamples; i++) {
+    const t = i / (edgeSamples - 1);
+    points.push([minX * scale, (minY + (1 - t) * height) * scale]);
+  }
+  
+  return points;
+}
+
+// Precise fitting function using binary search and point containment
+export function fitIntoMask(
+  logoBounds: SVGBounds,
+  maskPoints: [number, number][],
+  center: [number, number],
+  paddingPct: number = 10
+): { scale: number, offsetX: number, offsetY: number } {
+  const [centerX, centerY] = center;
+  
+  // Initial bounds-based scale estimate
+  const initialFit = calculateFitScale(logoBounds, maskPoints, paddingPct);
+  let maxScale = initialFit.scale * 2; // Start higher than bounds-based estimate
+  let minScale = 0.01;
+  let bestScale = minScale;
+  
+  // Binary search for maximum scale that keeps logo inside mask
+  for (let iteration = 0; iteration < 20; iteration++) {
+    const testScale = (minScale + maxScale) / 2;
+    
+    // Sample logo perimeter at this scale
+    const perimeterPoints = sampleLogoPerimeter(logoBounds, testScale);
+    
+    // Test if all perimeter points are inside mask (with offset to center)
+    const logoCenterX = logoBounds.minX + logoBounds.width / 2;
+    const logoCenterY = logoBounds.minY + logoBounds.height / 2;
+    const offsetX = centerX - (logoCenterX * testScale);
+    const offsetY = centerY - (logoCenterY * testScale);
+    
+    let allInside = true;
+    for (const [px, py] of perimeterPoints) {
+      const worldPoint: [number, number] = [px + offsetX, py + offsetY];
+      if (!pointInPolygon(worldPoint, maskPoints)) {
+        allInside = false;
+        break;
+      }
+    }
+    
+    if (allInside) {
+      bestScale = testScale;
+      minScale = testScale;
+    } else {
+      maxScale = testScale;
+    }
+    
+    if (maxScale - minScale < 0.001) break;
+  }
+  
+  // Apply padding reduction
+  const paddingFactor = Math.max(0.1, 1 - paddingPct / 100);
+  bestScale *= paddingFactor;
+  
+  // Calculate final offset
+  const logoCenterX = logoBounds.minX + logoBounds.width / 2;
+  const logoCenterY = logoBounds.minY + logoBounds.height / 2;
+  const offsetX = centerX - (logoCenterX * bestScale);
+  const offsetY = centerY - (logoCenterY * bestScale);
+  
+  return { scale: bestScale, offsetX, offsetY };
+}

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useLogoStore } from '@/store/logoStore';
-import { MASK_POINTS, polygonToPath } from '@/utils/mask';
+import { MASK_PATH, MASK_CENTER } from '@/utils/mask';
 
 export function LogoPreview() {
   const svgRef = useRef<SVGSVGElement>(null);
@@ -32,7 +32,7 @@ export function LogoPreview() {
     clipPath.id = 'maskClip';
     
     const clipPathElement = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    clipPathElement.setAttribute('d', polygonToPath(MASK_POINTS));
+    clipPathElement.setAttribute('d', MASK_PATH);
     clipPath.appendChild(clipPathElement);
     defs.appendChild(clipPath);
     svg.appendChild(defs);
@@ -40,7 +40,7 @@ export function LogoPreview() {
     // Add mask outline (if enabled)
     if (showOutline) {
       const outlinePath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      outlinePath.setAttribute('d', polygonToPath(MASK_POINTS));
+      outlinePath.setAttribute('d', MASK_PATH);
       outlinePath.setAttribute('fill', showClip ? 'hsl(var(--outline-fill))' : 'none');
       outlinePath.setAttribute('stroke', 'hsl(var(--outline))');
       outlinePath.setAttribute('stroke-width', '2');
@@ -66,8 +66,7 @@ export function LogoPreview() {
         transforms.push(`scale(${scale})`);
       }
       if (rotation !== 0) {
-        const centerX = 400; // mask center
-        const centerY = 350;
+        const [centerX, centerY] = MASK_CENTER;
         transforms.push(`rotate(${rotation}, ${centerX}, ${centerY})`);
       }
       
@@ -97,7 +96,7 @@ export function LogoPreview() {
     <div className="relative w-full h-full bg-canvas rounded-lg border border-border overflow-hidden">
       <svg
         ref={svgRef}
-        viewBox="0 0 800 700"
+        viewBox="0 0 1250 700"
         className="w-full h-full"
         style={{ background: 'hsl(var(--canvas))' }}
       >

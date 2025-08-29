@@ -5,8 +5,7 @@ import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
-import { MASK_POINTS, polygonToPath } from '@/utils/mask';
-import { parseSVGBounds, calculateFitScale } from '@/utils/logoProcessor';
+import { MASK_CENTER } from '@/utils/mask';
 
 export function ControlPanel() {
   const {
@@ -44,7 +43,9 @@ export function ControlPanel() {
 
       // Create new SVG for export
       const exportSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-      exportSvg.setAttribute('viewBox', '0 0 800 700');
+      exportSvg.setAttribute('viewBox', '0 0 1250 700');
+      exportSvg.setAttribute('width', '1250');
+      exportSvg.setAttribute('height', '700');
       exportSvg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
 
       // Create group with transforms
@@ -58,7 +59,8 @@ export function ControlPanel() {
         transforms.push(`scale(${scale})`);
       }
       if (rotation !== 0) {
-        transforms.push(`rotate(${rotation}, 400, 350)`);
+        const [centerX, centerY] = MASK_CENTER;
+        transforms.push(`rotate(${rotation}, ${centerX}, ${centerY})`);
       }
       
       if (transforms.length > 0) {
@@ -168,7 +170,7 @@ export function ControlPanel() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setTransform({ offsetX: 200, offsetY: 175 })}
+              onClick={() => setTransform({ offsetX: MASK_CENTER[0], offsetY: MASK_CENTER[1] })}
               className="text-xs"
             >
               Center
