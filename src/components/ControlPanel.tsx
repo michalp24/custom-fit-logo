@@ -6,7 +6,6 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { MASK_FILL_PATH, MASK_CENTER } from '@/utils/mask';
-
 export function ControlPanel() {
   const {
     logoData,
@@ -22,9 +21,9 @@ export function ControlPanel() {
     reset,
     refit
   } = useLogoStore();
-  
-  const { toast } = useToast();
-
+  const {
+    toast
+  } = useToast();
   const handleExport = () => {
     if (!logoData) {
       toast({
@@ -34,7 +33,6 @@ export function ControlPanel() {
       });
       return;
     }
-
     try {
       // Create clean SVG with only the transformed logo
       const parser = new DOMParser();
@@ -50,7 +48,6 @@ export function ControlPanel() {
 
       // Create group with transforms
       const logoGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-      
       const transforms = [];
       if (offsetX !== 0 || offsetY !== 0) {
         transforms.push(`translate(${offsetX}, ${offsetY})`);
@@ -62,7 +59,6 @@ export function ControlPanel() {
         const [centerX, centerY] = MASK_CENTER;
         transforms.push(`rotate(${rotation}, ${centerX}, ${centerY})`);
       }
-      
       if (transforms.length > 0) {
         logoGroup.setAttribute('transform', transforms.join(' '));
       }
@@ -73,14 +69,14 @@ export function ControlPanel() {
         const element = logoElements[i].cloneNode(true) as Element;
         logoGroup.appendChild(element);
       }
-
       exportSvg.appendChild(logoGroup);
 
       // Create and download the file
       const svgString = new XMLSerializer().serializeToString(exportSvg);
-      const blob = new Blob([svgString], { type: 'image/svg+xml' });
+      const blob = new Blob([svgString], {
+        type: 'image/svg+xml'
+      });
       const url = URL.createObjectURL(blob);
-      
       const a = document.createElement('a');
       a.href = url;
       a.download = 'logo-in-mask.svg';
@@ -88,7 +84,6 @@ export function ControlPanel() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-
       toast({
         title: "Export successful",
         description: "Your fitted logo has been exported as SVG."
@@ -102,7 +97,6 @@ export function ControlPanel() {
       });
     }
   };
-
   const handleNudge = (direction: 'up' | 'down' | 'left' | 'right', amount: number = 1) => {
     const newOffset = {
       offsetX: offsetX + (direction === 'left' ? -amount : direction === 'right' ? amount : 0),
@@ -110,38 +104,24 @@ export function ControlPanel() {
     };
     setTransform(newOffset);
   };
-
-  return (
-    <div className="bg-controls rounded-lg border border-border p-6 space-y-6">
+  return <div className="rounded-lg border border-border p-6 space-y-6 bg-[#0c0c0c]">
       <div className="space-y-4">
         <h3 className="text-lg font-semibold">Transform Controls</h3>
         
         {/* Padding Slider */}
         <div className="space-y-2">
           <Label htmlFor="padding">Padding: {padding}%</Label>
-          <Slider
-            id="padding"
-            min={0}
-            max={50}
-            step={1}
-            value={[padding]}
-            onValueChange={([value]) => setTransform({ padding: value })}
-            className="w-full"
-          />
+          <Slider id="padding" min={0} max={50} step={1} value={[padding]} onValueChange={([value]) => setTransform({
+          padding: value
+        })} className="w-full" />
         </div>
 
         {/* Rotation Slider */}
         <div className="space-y-2">
           <Label htmlFor="rotation">Rotation: {rotation}°</Label>
-          <Slider
-            id="rotation"
-            min={-180}
-            max={180}
-            step={1}
-            value={[rotation]}
-            onValueChange={([value]) => setTransform({ rotation: value })}
-            className="w-full"
-          />
+          <Slider id="rotation" min={-180} max={180} step={1} value={[rotation]} onValueChange={([value]) => setTransform({
+          rotation: value
+        })} className="w-full" />
         </div>
 
         {/* Position Controls */}
@@ -149,48 +129,26 @@ export function ControlPanel() {
           <Label>Position (X: {offsetX.toFixed(0)}, Y: {offsetY.toFixed(0)})</Label>
           <div className="grid grid-cols-3 gap-2">
             <div></div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleNudge('up', 5)}
-              className="text-xs"
-            >
+            <Button variant="outline" size="sm" onClick={() => handleNudge('up', 5)} className="text-xs">
               ↑
             </Button>
             <div></div>
             
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleNudge('left', 5)}
-              className="text-xs"
-            >
+            <Button variant="outline" size="sm" onClick={() => handleNudge('left', 5)} className="text-xs">
               ←
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setTransform({ offsetX: 0, offsetY: 0 })}
-              className="text-xs"
-            >
+            <Button variant="outline" size="sm" onClick={() => setTransform({
+            offsetX: 0,
+            offsetY: 0
+          })} className="text-xs">
               Center
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleNudge('right', 5)}
-              className="text-xs"
-            >
+            <Button variant="outline" size="sm" onClick={() => handleNudge('right', 5)} className="text-xs">
               →
             </Button>
             
             <div></div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleNudge('down', 5)}
-              className="text-xs"
-            >
+            <Button variant="outline" size="sm" onClick={() => handleNudge('down', 5)} className="text-xs">
               ↓
             </Button>
             <div></div>
@@ -204,22 +162,16 @@ export function ControlPanel() {
       <div className="space-y-3">
         <h4 className="font-medium">View Options</h4>
         <div className="flex flex-col space-y-2">
-          <Button
-            variant={showOutline ? "default" : "outline"}
-            size="sm"
-            onClick={() => setUI({ showOutline: !showOutline })}
-            className="justify-start"
-          >
+          <Button variant={showOutline ? "default" : "outline"} size="sm" onClick={() => setUI({
+          showOutline: !showOutline
+        })} className="justify-start text-neutral-950">
             {showOutline ? <Eye className="mr-2 h-4 w-4" /> : <EyeOff className="mr-2 h-4 w-4" />}
             Show Outline
           </Button>
           
-          <Button
-            variant={showClip ? "default" : "outline"}
-            size="sm"
-            onClick={() => setUI({ showClip: !showClip })}
-            className="justify-start"
-          >
+          <Button variant={showClip ? "default" : "outline"} size="sm" onClick={() => setUI({
+          showClip: !showClip
+        })} className="justify-start">
             {showClip ? <Eye className="mr-2 h-4 w-4" /> : <EyeOff className="mr-2 h-4 w-4" />}
             Show Clip
           </Button>
@@ -231,32 +183,18 @@ export function ControlPanel() {
       {/* Action Buttons */}
       <div className="space-y-3">
         <div className="grid grid-cols-2 gap-3">
-          <Button
-            variant="outline"
-            onClick={refit}
-            disabled={!logoData}
-            className="w-full"
-          >
+          <Button variant="outline" onClick={refit} disabled={!logoData} className="w-full">
             <Target className="mr-2 h-4 w-4" />
             Refit
           </Button>
           
-          <Button
-            variant="outline"
-            onClick={reset}
-            disabled={!logoData}
-            className="w-full"
-          >
+          <Button variant="outline" onClick={reset} disabled={!logoData} className="w-full">
             <RotateCcw className="mr-2 h-4 w-4" />
             Reset
           </Button>
         </div>
         
-        <Button
-          onClick={handleExport}
-          disabled={!logoData}
-          className="w-full"
-        >
+        <Button onClick={handleExport} disabled={!logoData} className="w-full text-neutral-950">
           <Download className="mr-2 h-4 w-4" />
           Export SVG
         </Button>
@@ -269,6 +207,5 @@ export function ControlPanel() {
         <p>[ / ]: Rotate ±1° (Shift: ±10°)</p>
         <p>F: Refit logo</p>
       </div>
-    </div>
-  );
+    </div>;
 }

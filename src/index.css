@@ -8,8 +8,12 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 216 27% 7%;
+    --background: 0 0% 0%;
     --foreground: 210 40% 98%;
+
+    /* White opacity variants */
+    --white-10: 0 0% 100% / 0.1;
+    --white-20: 0 0% 100% / 0.2;
 
     --card: 216 27% 10%;
     --card-foreground: 210 40% 98%;
@@ -32,14 +36,14 @@ All colors MUST be HSL.
     --destructive: 0 62.8% 60%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 216 27% 20%;
+    --border: 0 0% 19%;
     --input: 216 27% 15%;
     --ring: 300 76% 72%;
 
     /* Logo Exporter specific colors */
     --outline: 300 76% 72%;
     --outline-fill: 300 76% 72% / 0.1;
-    --canvas: 216 27% 12%;
+    --canvas: 0 0% 5%;
     --controls: 216 27% 15%;
 
     --radius: 0.5rem;
@@ -62,8 +66,12 @@ All colors MUST be HSL.
   }
 
   .dark {
-    --background: 216 27% 7%;
+    --background: 0 0% 0%;
     --foreground: 210 40% 98%;
+
+    /* White opacity variants */
+    --white-10: 0 0% 100% / 0.1;
+    --white-20: 0 0% 100% / 0.2;
 
     --card: 216 27% 10%;
     --card-foreground: 210 40% 98%;
@@ -86,14 +94,14 @@ All colors MUST be HSL.
     --destructive: 0 62.8% 60%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 216 27% 20%;
+    --border: 0 0% 19%;
     --input: 216 27% 15%;
     --ring: 300 76% 72%;
 
     /* Logo Exporter specific colors */
     --outline: 300 76% 72%;
     --outline-fill: 300 76% 72% / 0.1;
-    --canvas: 216 27% 12%;
+    --canvas: 0 0% 5%;
     --controls: 216 27% 15%;
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
@@ -109,6 +117,7 @@ All colors MUST be HSL.
 @layer base {
   * {
     @apply border-border;
+    border-color: hsl(0 0% 19%);
   }
 
   body {
