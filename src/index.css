@@ -39,7 +39,7 @@ All colors MUST be HSL.
     /* Logo Exporter specific colors */
     --outline: 300 76% 72%;
     --outline-fill: 300 76% 72% / 0.1;
-    --canvas: 216 27% 12%;
+    --canvas: 0 0% 5%;
     --controls: 216 27% 15%;
 
     --radius: 0.5rem;
@@ -93,7 +93,7 @@ All colors MUST be HSL.
     /* Logo Exporter specific colors */
     --outline: 300 76% 72%;
     --outline-fill: 300 76% 72% / 0.1;
-    --canvas: 216 27% 12%;
+    --canvas: 0 0% 5%;
     --controls: 216 27% 15%;
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
