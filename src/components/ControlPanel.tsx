@@ -104,7 +104,7 @@ export function ControlPanel() {
     };
     setTransform(newOffset);
   };
-  return <div className="bg-controls rounded-lg border border-border p-6 space-y-6">
+  return <div className="rounded-lg border border-border p-6 space-y-6 bg-[#0c0c0c]">
       <div className="space-y-4">
         <h3 className="text-lg font-semibold">Transform Controls</h3>
         
