@@ -314,8 +314,10 @@ export function fitIntoMask(
     if (maxScale - minScale < 0.001) break;
   }
   
-  // Apply padding reduction
-  const paddingFactor = Math.max(0, 1 - paddingPct / 100);
+  // Apply a tiny safety inset to prevent bleeding outside the mask
+  const safetyPct = 0.5; // minimal inset to avoid overshoot
+  const effectivePaddingPct = Math.max(paddingPct, safetyPct);
+  const paddingFactor = Math.max(0, 1 - effectivePaddingPct / 100);
   bestScale *= paddingFactor;
   
   // Calculate final offset
