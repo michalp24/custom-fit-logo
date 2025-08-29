@@ -1,6 +1,7 @@
 import maskData from '@/assets/mask.json';
 
-export const MASK_PATH: string = maskData.path as string;
+export const MASK_OUTLINE_PATH: string = (maskData as any).outlinePath as string;
+export const MASK_FILL_PATH: string = (maskData as any).fillPath as string;
 export const MASK_CENTER: [number, number] = maskData.center as [number, number];
 
 // Convert path to dense polygon points for fitting calculations
@@ -28,7 +29,7 @@ function pathToPoints(d: string, stepPx: number = 1.5): [number, number][] {
   return points;
 }
 
-export const MASK_POINTS: [number, number][] = pathToPoints(MASK_PATH);
+export const MASK_POINTS: [number, number][] = pathToPoints(MASK_FILL_PATH);
 
 // Create SVG path from polygon points (kept for backward compatibility)
 export function polygonToPath(points: [number, number][]): string {

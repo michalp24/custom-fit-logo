@@ -5,7 +5,7 @@ import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
-import { MASK_CENTER } from '@/utils/mask';
+import { MASK_FILL_PATH, MASK_CENTER } from '@/utils/mask';
 
 export function ControlPanel() {
   const {
@@ -170,7 +170,7 @@ export function ControlPanel() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setTransform({ offsetX: MASK_CENTER[0], offsetY: MASK_CENTER[1] })}
+              onClick={() => setTransform({ offsetX: 0, offsetY: 0 })}
               className="text-xs"
             >
               Center
