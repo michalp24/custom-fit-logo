@@ -56,6 +56,8 @@ export default {
 				'outline-fill': 'hsl(var(--outline-fill))',
 				canvas: 'hsl(var(--canvas))',
 				controls: 'hsl(var(--controls))',
+				'white-10': 'hsl(var(--white-10))',
+				'white-20': 'hsl(var(--white-20))',
 				sidebar: {
 					DEFAULT: 'hsl(var(--sidebar-background))',
 					foreground: 'hsl(var(--sidebar-foreground))',
