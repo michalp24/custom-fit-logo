@@ -5,7 +5,8 @@ import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
-import { DEFAULT_MASK_POINTS, polygonToPath } from '@/utils/maskData';
+import { MASK_POINTS, polygonToPath } from '@/utils/mask';
+import { parseSVGBounds, calculateFitScale } from '@/utils/logoProcessor';
 
 export function ControlPanel() {
   const {

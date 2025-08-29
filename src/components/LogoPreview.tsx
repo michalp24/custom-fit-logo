@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useLogoStore } from '@/store/logoStore';
-import { DEFAULT_MASK_POINTS, polygonToPath } from '@/utils/maskData';
+import { MASK_POINTS, polygonToPath } from '@/utils/mask';
 
 export function LogoPreview() {
   const svgRef = useRef<SVGSVGElement>(null);
@@ -32,7 +32,7 @@ export function LogoPreview() {
     clipPath.id = 'maskClip';
     
     const clipPathElement = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    clipPathElement.setAttribute('d', polygonToPath(DEFAULT_MASK_POINTS));
+    clipPathElement.setAttribute('d', polygonToPath(MASK_POINTS));
     clipPath.appendChild(clipPathElement);
     defs.appendChild(clipPath);
     svg.appendChild(defs);
@@ -40,7 +40,7 @@ export function LogoPreview() {
     // Add mask outline (if enabled)
     if (showOutline) {
       const outlinePath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      outlinePath.setAttribute('d', polygonToPath(DEFAULT_MASK_POINTS));
+      outlinePath.setAttribute('d', polygonToPath(MASK_POINTS));
       outlinePath.setAttribute('fill', showClip ? 'hsl(var(--outline-fill))' : 'none');
       outlinePath.setAttribute('stroke', 'hsl(var(--outline))');
       outlinePath.setAttribute('stroke-width', '2');

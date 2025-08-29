@@ -3,7 +3,7 @@ import { useDropzone } from 'react-dropzone';
 import { Upload, Image, FileImage } from 'lucide-react';
 import { useLogoStore } from '@/store/logoStore';
 import { loadImageFromFile, parseSVGBounds, getAlphaTightBounds, vectorizeRasterImage, calculateFitScale } from '@/utils/logoProcessor';
-import { DEFAULT_MASK_POINTS } from '@/utils/maskData';
+import { MASK_POINTS } from '@/utils/mask';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 
@@ -22,7 +22,7 @@ export function UploadZone() {
         // Handle SVG
         const svgText = await file.text();
         const bounds = parseSVGBounds(svgText);
-        const { scale, offsetX, offsetY } = calculateFitScale(bounds, DEFAULT_MASK_POINTS, state.padding);
+        const { scale, offsetX, offsetY } = calculateFitScale(bounds, MASK_POINTS, state.padding);
         
         setLogoData(svgText, 'svg');
         setTransform({ scale, offsetX, offsetY });
@@ -37,7 +37,7 @@ export function UploadZone() {
         const { canvas, bounds } = await getAlphaTightBounds(img);
         const svgString = await vectorizeRasterImage(canvas);
         
-        const { scale, offsetX, offsetY } = calculateFitScale(bounds, DEFAULT_MASK_POINTS, state.padding);
+        const { scale, offsetX, offsetY } = calculateFitScale(bounds, MASK_POINTS, state.padding);
         
         setLogoData(svgString, 'raster');
         setTransform({ scale, offsetX, offsetY });

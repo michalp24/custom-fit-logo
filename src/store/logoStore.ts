@@ -81,9 +81,19 @@ export const useLogoStore = create<LogoState>((set, get) => ({
   }),
   
   refit: () => {
-    // This will be implemented to auto-fit the logo
     const state = get();
-    // Auto-fit logic will go here
-    console.log('Refitting logo...', state);
+    if (!state.logoData) return;
+    
+    try {
+      const { parseSVGBounds, calculateFitScale } = require('../utils/logoProcessor');
+      const { MASK_POINTS } = require('../utils/mask');
+      
+      const bounds = parseSVGBounds(state.logoData);
+      const { scale, offsetX, offsetY } = calculateFitScale(bounds, MASK_POINTS, state.padding);
+      
+      set({ scale, offsetX, offsetY });
+    } catch (error) {
+      console.error('Error refitting logo:', error);
+    }
   },
 }));
