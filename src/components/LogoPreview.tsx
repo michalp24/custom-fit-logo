@@ -98,12 +98,7 @@ export function LogoPreview() {
         ref={svgRef}
         viewBox="0 0 1250 700"
         className="w-full h-full"
-        style={{ 
-          background: 'hsl(var(--canvas))',
-          boxSizing: 'border-box',
-          display: 'block'
-        }}
-        preserveAspectRatio="xMidYMid meet"
+        style={{ background: 'hsl(var(--canvas))' }}
       >
         {/* SVG content will be dynamically inserted here */}
       </svg>
