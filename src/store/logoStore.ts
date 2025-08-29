@@ -124,7 +124,7 @@ export const useLogoStore = create<LogoState>((set, get) => ({
       const { MASK_POINTS, MASK_CENTER } = require('../utils/mask');
       
       const bounds = parseSVGBounds(state.logoData);
-      const { scale, offsetX, offsetY } = fitIntoMask(bounds, MASK_POINTS, MASK_CENTER, state.padding);
+      const { scale, offsetX, offsetY } = fitIntoMask(bounds, MASK_POINTS, MASK_CENTER, state.padding, state.rotation);
       
       set({ scale, offsetX, offsetY });
     } catch (error) {
