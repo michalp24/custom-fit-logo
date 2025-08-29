@@ -203,7 +203,7 @@ export function calculateFitScale(
   // Calculate scale to fit
   const scaleX = availableWidth / logoBounds.width;
   const scaleY = availableHeight / logoBounds.height;
-  const scale = Math.min(scaleX, scaleY);
+  const scale = Math.min(scaleX, scaleY) * 0.9; // 10% additional margin
   
   // Calculate offset to center
   const logoCenterX = logoBounds.minX + logoBounds.width / 2;
@@ -272,7 +272,7 @@ export function fitIntoMask(
   logoBounds: SVGBounds,
   maskPoints: [number, number][],
   center: [number, number],
-  paddingPct: number = 0
+  paddingPct: number = 10
 ): { scale: number, offsetX: number, offsetY: number } {
   const [centerX, centerY] = center;
   

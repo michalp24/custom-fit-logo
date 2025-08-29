@@ -47,7 +47,7 @@ export const useLogoStore = create<LogoState>((set, get) => ({
   rotation: 0,
   offsetX: 0,
   offsetY: 0,
-  padding: 0,
+  padding: 10,
   
   showOutline: true,
   showClip: false,
@@ -77,7 +77,7 @@ export const useLogoStore = create<LogoState>((set, get) => ({
     rotation: 0,
     offsetX: 0,
     offsetY: 0,
-    padding: 0,
+    padding: 10,
   }),
   
   refit: () => {
