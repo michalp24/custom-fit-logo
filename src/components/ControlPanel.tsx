@@ -18,6 +18,7 @@ export function ControlPanel() {
     showClip,
     setTransform,
     setUI,
+    center,
     reset,
     refit
   } = useLogoStore();
@@ -137,10 +138,7 @@ export function ControlPanel() {
             <Button variant="outline" size="sm" onClick={() => handleNudge('left', 5)} className="text-xs">
               ←
             </Button>
-            <Button variant="outline" size="sm" onClick={() => setTransform({
-            offsetX: 0,
-            offsetY: 0
-          })} className="text-xs">
+            <Button variant="outline" size="sm" onClick={center} className="text-xs">
               Center
             </Button>
             <Button variant="outline" size="sm" onClick={() => handleNudge('right', 5)} className="text-xs">

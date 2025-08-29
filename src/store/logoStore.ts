@@ -33,6 +33,7 @@ export interface LogoState {
     showClip: boolean;
     isProcessing: boolean;
   }>) => void;
+  center: () => void;
   reset: () => void;
   refit: () => void;
 }
@@ -72,14 +73,48 @@ export const useLogoStore = create<LogoState>((set, get) => ({
     ...ui
   })),
   
-  reset: () => set({
-    scale: 1,
-    rotation: 0,
-    offsetX: 0,
-    offsetY: 0,
-    padding: 0,
-  }),
-  
+  center: () => {
+    const state = get();
+    if (!state.logoData) return;
+    
+    try {
+      const { parseSVGBounds } = require('../utils/logoProcessor');
+      const { MASK_CENTER } = require('../utils/mask');
+      
+      const bounds = parseSVGBounds(state.logoData);
+      const [centerX, centerY] = MASK_CENTER;
+      
+      // Calculate offset to center logo at current scale
+      const logoCenterX = bounds.minX + bounds.width / 2;
+      const logoCenterY = bounds.minY + bounds.height / 2;
+      const offsetX = centerX - (logoCenterX * state.scale);
+      const offsetY = centerY - (logoCenterY * state.scale);
+      
+      set({ offsetX, offsetY });
+    } catch (error) {
+      console.error('Error centering logo:', error);
+    }
+  },
+
+  reset: () => {
+    const state = get();
+    set({
+      scale: 1,
+      rotation: 0,
+      offsetX: 0,
+      offsetY: 0,
+      padding: 0,
+    });
+    
+    // After reset, center the logo
+    setTimeout(() => {
+      const newState = get();
+      if (newState.logoData) {
+        newState.center();
+      }
+    }, 0);
+  },
+
   refit: () => {
     const state = get();
     if (!state.logoData) return;
