@@ -315,7 +315,7 @@ export function fitIntoMask(
   }
   
   // Apply padding reduction
-  const paddingFactor = Math.max(0.1, 1 - paddingPct / 100);
+  const paddingFactor = Math.max(0, 1 - paddingPct / 100);
   bestScale *= paddingFactor;
   
   // Calculate final offset
