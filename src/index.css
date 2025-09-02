@@ -36,7 +36,7 @@ All colors MUST be HSL.
     --destructive: 0 62.8% 60%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 0 0% 19%;
+    --border: 0 0% 20%;
     --input: 216 27% 15%;
     --ring: 300 76% 72%;
 
@@ -94,7 +94,7 @@ All colors MUST be HSL.
     --destructive: 0 62.8% 60%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 0 0% 19%;
+    --border: 0 0% 20%;
     --input: 216 27% 15%;
     --ring: 300 76% 72%;
 
@@ -114,10 +114,32 @@ All colors MUST be HSL.
   }
 }
 
+@layer components {
+  .nv-button--kind-secondary {
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid #313131;
+    justify-content: center;
+    text-align: center;
+  }
+  .nv-button--kind-secondary:hover,
+  .nv-button--kind-secondary:active {
+    background-color: rgba(255, 255, 255, 0.2);
+  }
+}
+
+@layer utilities {
+  .border-border {
+    border-color: #333333;
+  }
+  .bg-border {
+    background-color: #333333;
+  }
+}
+
 @layer base {
   * {
     @apply border-border;
-    border-color: hsl(0 0% 19%);
+    border-color: #333333;
   }
 
   body {

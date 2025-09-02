@@ -15,7 +15,7 @@ export function ControlPanel() {
     offsetY,
     padding,
     showOutline,
-    showClip,
+    showCanvas,
     setTransform,
     setUI,
     center,
@@ -156,39 +156,21 @@ export function ControlPanel() {
 
       <Separator />
 
-      {/* View Options */}
+      {/* View Options (moved into actions) */}
       <div className="space-y-3">
-        <h4 className="font-medium">View Options</h4>
-        <div className="flex flex-col space-y-2">
-          <Button variant={showOutline ? "default" : "outline"} size="sm" onClick={() => setUI({
+        <div className="grid grid-cols-2 gap-3">
+          <Button variant="ghost" size="sm" onClick={() => setUI({
           showOutline: !showOutline
-        })} className="justify-start text-neutral-950">
+        })} className="w-full justify-center text-center nv-button--kind-secondary">
             {showOutline ? <Eye className="mr-2 h-4 w-4" /> : <EyeOff className="mr-2 h-4 w-4" />}
             Show Outline
           </Button>
           
-          <Button variant={showClip ? "default" : "outline"} size="sm" onClick={() => setUI({
-          showClip: !showClip
-        })} className="justify-start">
-            {showClip ? <Eye className="mr-2 h-4 w-4" /> : <EyeOff className="mr-2 h-4 w-4" />}
-            Show Clip
-          </Button>
-        </div>
-      </div>
-
-      <Separator />
-
-      {/* Action Buttons */}
-      <div className="space-y-3">
-        <div className="grid grid-cols-2 gap-3">
-          <Button variant="outline" onClick={refit} disabled={!logoData} className="w-full">
-            <Target className="mr-2 h-4 w-4" />
-            Refit
-          </Button>
-          
-          <Button variant="outline" onClick={reset} disabled={!logoData} className="w-full">
-            <RotateCcw className="mr-2 h-4 w-4" />
-            Reset
+          <Button variant="ghost" size="sm" onClick={() => setUI({
+          showCanvas: !showCanvas
+        })} className="w-full justify-center text-center nv-button--kind-secondary">
+            {showCanvas ? <Eye className="mr-2 h-4 w-4" /> : <EyeOff className="mr-2 h-4 w-4" />}
+            Show Canvas
           </Button>
         </div>
         
@@ -203,7 +185,6 @@ export function ControlPanel() {
         <p className="font-medium">Keyboard Shortcuts:</p>
         <p>Arrow keys: Nudge 1px (Shift: 10px)</p>
         <p>[ / ]: Rotate ±1° (Shift: ±10°)</p>
-        <p>F: Refit logo</p>
       </div>
     </div>;
 }

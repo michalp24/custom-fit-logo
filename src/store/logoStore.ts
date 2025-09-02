@@ -15,7 +15,7 @@ export interface LogoState {
   
   // UI state
   showOutline: boolean;
-  showClip: boolean;
+  showCanvas: boolean;
   isProcessing: boolean;
   
   // Actions
@@ -30,7 +30,7 @@ export interface LogoState {
   }>) => void;
   setUI: (ui: Partial<{
     showOutline: boolean;
-    showClip: boolean;
+    showCanvas: boolean;
     isProcessing: boolean;
   }>) => void;
   center: () => void;
@@ -51,7 +51,7 @@ export const useLogoStore = create<LogoState>((set, get) => ({
   padding: 0,
   
   showOutline: true,
-  showClip: false,
+  showCanvas: false,
   isProcessing: false,
   
   // Actions
