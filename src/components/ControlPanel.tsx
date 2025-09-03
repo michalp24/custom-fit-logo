@@ -1,9 +1,12 @@
 import { Download, Target, Eye, EyeOff, Sun, Moon } from 'lucide-react';
+import { useState } from 'react';
 import { useLogoStore } from '@/store/logoStore';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { MASK_FILL_PATH, MASK_CENTER } from '@/utils/mask';
 interface ControlPanelProps {
@@ -13,6 +16,7 @@ interface ControlPanelProps {
 export function ControlPanel({ isLockupPage = false }: ControlPanelProps) {
   const {
     logoData,
+    logoFile,
     scale,
     offsetX,
     offsetY,
@@ -28,21 +32,13 @@ export function ControlPanel({ isLockupPage = false }: ControlPanelProps) {
     reset,
     refit
   } = useLogoStore();
-  const {
-    toast
-  } = useToast();
+  const { toast } = useToast();
+  
+  // Export modal state
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [fileName, setFileName] = useState('');
   const handleExport = () => {
-    if (isLockupPage) {
-      // Export full lockup canvas
-      exportLockupCanvas();
-    } else {
-      // Export single logo
-      exportSingleLogo();
-    }
-  };
-
-  const exportSingleLogo = async () => {
-    if (!logoData) {
+    if (!logoData && !isLockupPage) {
       toast({
         title: "No logo to export",
         description: "Please upload a logo first.",
@@ -50,6 +46,33 @@ export function ControlPanel({ isLockupPage = false }: ControlPanelProps) {
       });
       return;
     }
+    
+    // Set default filename based on uploaded file name or page type
+    let defaultName;
+    if (logoFile) {
+      // Use uploaded file name without extension
+      const nameWithoutExt = logoFile.name.replace(/\.[^/.]+$/, '');
+      defaultName = isLockupPage ? `${nameWithoutExt}-lockup` : nameWithoutExt;
+    } else {
+      // Fallback to generic names
+      defaultName = isLockupPage ? 'logo-lockup' : 'logo-in-mask';
+    }
+    setFileName(defaultName);
+    setShowExportModal(true);
+  };
+  
+  const handleConfirmExport = () => {
+    const finalFileName = fileName.trim() || (isLockupPage ? 'logo-lockup' : 'logo-in-mask');
+    setShowExportModal(false);
+    
+    if (isLockupPage) {
+      exportLockupCanvas(finalFileName);
+    } else {
+      exportSingleLogo(finalFileName);
+    }
+  };
+
+  const exportSingleLogo = async (filename: string) => {
     try {
       // Create clean SVG with only the transformed logo
       const parser = new DOMParser();
@@ -104,7 +127,7 @@ export function ControlPanel({ isLockupPage = false }: ControlPanelProps) {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'logo-in-mask.svg';
+      a.download = `${filename}.svg`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -123,7 +146,7 @@ export function ControlPanel({ isLockupPage = false }: ControlPanelProps) {
     }
   };
 
-  const exportLockupCanvas = async () => {
+  const exportLockupCanvas = async (filename: string) => {
     try {
       // Create full lockup canvas SVG
       const CANVAS_WIDTH = 1920;
@@ -155,9 +178,18 @@ export function ControlPanel({ isLockupPage = false }: ControlPanelProps) {
       const leftAreaHeight = CANVAS_HEIGHT - TOP_BOTTOM_PADDING * 2;
       const LOGO_PADDING = 120;
 
-      // Load and embed NVIDIA logo
+      // Load and embed NVIDIA logo (choose based on layout and theme)
       try {
-        const logoPath = isDarkCanvas ? '/nvidia-logo-dark.svg' : '/nvidia-logo.svg';
+        const { lockupOrientation } = useLogoStore.getState();
+        const isHorizontal = lockupOrientation === 'horizontal';
+        
+        let logoPath;
+        if (isHorizontal) {
+          logoPath = isDarkCanvas ? '/nvidia-logo-lcokup-dark.svg' : '/nvidia-logo-lockup.svg';
+        } else {
+          logoPath = isDarkCanvas ? '/nvidia-logo-dark.svg' : '/nvidia-logo.svg';
+        }
+        
         const response = await fetch(logoPath);
         const logoSvgText = await response.text();
         const parser = new DOMParser();
@@ -169,15 +201,22 @@ export function ControlPanel({ isLockupPage = false }: ControlPanelProps) {
         const availableWidth = leftAreaWidth - LOGO_PADDING * 2;
         const availableHeight = leftAreaHeight - LOGO_PADDING * 2;
         
-        // NVIDIA logo actual dimensions are 480x372
-        const logoActualWidth = 480;
-        const logoActualHeight = 372;
+        // Logo dimensions and scaling based on layout
+        const logoActualWidth = isHorizontal ? 694 : 480; // lockup is 694x133, regular is 480x372
+        const logoActualHeight = isHorizontal ? 133 : 372;
         
-        // Calculate scale to fit within available space and 478px max width limit
-        const maxAllowedWidth = Math.min(478, availableWidth);
-        const scaleX = maxAllowedWidth / logoActualWidth;
-        const scaleY = availableHeight / logoActualHeight;
-        const finalScale = Math.min(scaleX, scaleY);
+        // For horizontal layout, target 692px width; for vertical, use 478px max
+        let finalScale;
+        if (isHorizontal) {
+          // Target 692px width for horizontal lockup logo
+          finalScale = 692 / logoActualWidth;
+        } else {
+          // Use original logic for vertical layout with 478px max
+          const maxAllowedWidth = Math.min(478, availableWidth);
+          const scaleX = maxAllowedWidth / logoActualWidth;
+          const scaleY = availableHeight / logoActualHeight;
+          finalScale = Math.min(scaleX, scaleY);
+        }
         
         // Center the logo within the available space
         const scaledWidth = logoActualWidth * finalScale;
@@ -199,12 +238,16 @@ export function ControlPanel({ isLockupPage = false }: ControlPanelProps) {
         console.warn('Could not load NVIDIA logo for export:', error);
       }
 
-      // Separator
+      // Separator (responsive to orientation)
+      const { lockupOrientation } = useLogoStore.getState();
+      const isHorizontal = lockupOrientation === 'horizontal';
+      const separatorHeight = isHorizontal ? 304 : 550; // 304px for horizontal, 550px for vertical
+      
       const separatorRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
       separatorRect.setAttribute('x', String(SEPARATOR_X - SEPARATOR_WIDTH / 2));
-      separatorRect.setAttribute('y', String((CANVAS_HEIGHT - 550) / 2));
+      separatorRect.setAttribute('y', String((CANVAS_HEIGHT - separatorHeight) / 2));
       separatorRect.setAttribute('width', String(SEPARATOR_WIDTH));
-      separatorRect.setAttribute('height', '550');
+      separatorRect.setAttribute('height', String(separatorHeight));
       separatorRect.setAttribute('fill', isDarkCanvas ? '#333333' : '#cccccc');
       exportSvg.appendChild(separatorRect);
 
@@ -255,7 +298,7 @@ export function ControlPanel({ isLockupPage = false }: ControlPanelProps) {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'logo-lockup.svg';
+      a.download = `${filename}.svg`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -382,7 +425,39 @@ export function ControlPanel({ isLockupPage = false }: ControlPanelProps) {
       <div className="text-xs text-muted-foreground space-y-1 pt-2 border-t border-border/50">
         <p className="font-medium">Keyboard Shortcuts:</p>
         <p>Arrow keys: Nudge 1px (Shift: 10px)</p>
-
       </div>
+      
+      {/* Export Modal */}
+      <Dialog open={showExportModal} onOpenChange={setShowExportModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Export {isLockupPage ? 'Logo Lockup' : 'Logo'}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="filename">File Name</Label>
+              <Input
+                id="filename"
+                value={fileName}
+                onChange={(e) => setFileName(e.target.value)}
+                placeholder={isLockupPage ? 'logo-lockup' : 'logo-in-mask'}
+                className="w-full"
+              />
+              <p className="text-sm text-muted-foreground">
+                File will be saved as: <strong>{fileName.trim() || (isLockupPage ? 'logo-lockup' : 'logo-in-mask')}.svg</strong>
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowExportModal(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleConfirmExport} className="text-neutral-950">
+              <Download className="mr-2 h-4 w-4" />
+              Export SVG
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>;
 }

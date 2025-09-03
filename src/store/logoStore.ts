@@ -20,6 +20,7 @@ export interface LogoState {
   showCanvas: boolean;
   isProcessing: boolean;
   isDarkCanvas: boolean;
+  lockupOrientation: 'vertical' | 'horizontal';
 
   // Saved state
   initialTransform: {
@@ -44,6 +45,7 @@ export interface LogoState {
     showCanvas: boolean;
     isDarkCanvas: boolean;
     isProcessing: boolean;
+    lockupOrientation: 'vertical' | 'horizontal';
   }>) => void;
   setInitialTransform: (t: { scale: number; offsetX: number; offsetY: number }) => void;
   restoreInitialTransform: () => void;
@@ -70,6 +72,7 @@ export const useLogoStore = create<LogoState>((set, get) => ({
   showCanvas: false,
   isProcessing: false,
   isDarkCanvas: false,
+  lockupOrientation: 'vertical',
 
   initialTransform: null,
   

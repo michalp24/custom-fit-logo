@@ -6,12 +6,13 @@ import { loadImageFromFile, parseSVGBounds, getAlphaTightBounds, vectorizeRaster
 // Lockup canvas constants
 const CANVAS_WIDTH = 1920;
 const CANVAS_HEIGHT = 1080;
-const SEPARATOR_X = CANVAS_WIDTH / 2; // centered separator
 const SEPARATOR_WIDTH = 8;
-const RIGHT_PADDING = 120; // outer padding for right half
-const TOP_BOTTOM_PADDING = 160;
-const RIGHT_BOX_WIDTH = 480;
-const RIGHT_BOX_HEIGHT = 370;
+const PADDING = 120;
+// Logo box dimensions (different for each layout)
+const VERTICAL_LOGO_WIDTH = 480;
+const VERTICAL_LOGO_HEIGHT = 370;
+const HORIZONTAL_LOGO_WIDTH = 692;
+const HORIZONTAL_LOGO_HEIGHT = 132;
 
 function rectToPolygonPoints(x: number, y: number, width: number, height: number): [number, number][] {
   return [
@@ -34,25 +35,81 @@ export function LockupPreview() {
     isDarkCanvas,
     baseScale,
     scaleFactor,
+    lockupOrientation,
   } = useLogoStore();
   const { setLogoFile, setLogoData, setTransform, setUI, setInitialTransform, setAnchor } = useLogoStore();
 
-  // Precompute partner logo placement box (fixed 480x370)
-  const rightBoundsXStart = SEPARATOR_X + SEPARATOR_WIDTH + RIGHT_PADDING;
-  const rightBoundsXEnd = CANVAS_WIDTH - RIGHT_PADDING;
-  const availableRightWidth = rightBoundsXEnd - rightBoundsXStart;
-  const availableRightHeight = CANVAS_HEIGHT - TOP_BOTTOM_PADDING * 2;
-  const rightArea = {
-    x: rightBoundsXStart + Math.max(0, (availableRightWidth - RIGHT_BOX_WIDTH) / 2),
-    y: TOP_BOTTOM_PADDING + Math.max(0, (availableRightHeight - RIGHT_BOX_HEIGHT) / 2),
-    width: RIGHT_BOX_WIDTH,
-    height: RIGHT_BOX_HEIGHT,
-  };
-  const rightAreaCenter: [number, number] = [
-    rightArea.x + rightArea.width / 2,
-    rightArea.y + rightArea.height / 2,
+  // Calculate layout based on orientation
+  const isHorizontal = lockupOrientation === 'horizontal';
+  
+  // Layout calculations
+  let nvidiaArea, separatorConfig, partnerArea, partnerAreaCenter, partnerAreaPoints;
+  
+  if (isHorizontal) {
+    // Horizontal layout: NVIDIA left, separator vertical, partner right
+    const separatorX = CANVAS_WIDTH / 2;
+    const leftAreaWidth = separatorX - PADDING * 2;
+    const rightAreaXStart = separatorX + SEPARATOR_WIDTH + PADDING;
+    const rightAreaWidth = CANVAS_WIDTH - rightAreaXStart - PADDING;
+    
+    nvidiaArea = {
+      x: PADDING,
+      y: PADDING,
+      width: leftAreaWidth,
+      height: CANVAS_HEIGHT - PADDING * 2,
+    };
+    
+    separatorConfig = {
+      x: separatorX - SEPARATOR_WIDTH / 2,
+      y: (CANVAS_HEIGHT - 304) / 2, // 304px height for horizontal
+      width: SEPARATOR_WIDTH,
+      height: 304,
+      isHorizontal: false,
+    };
+    
+    // Horizontal layout uses 692x132 logo area
+    partnerArea = {
+      x: rightAreaXStart + Math.max(0, (rightAreaWidth - HORIZONTAL_LOGO_WIDTH) / 2),
+      y: PADDING + Math.max(0, (CANVAS_HEIGHT - PADDING * 2 - HORIZONTAL_LOGO_HEIGHT) / 2),
+      width: HORIZONTAL_LOGO_WIDTH,
+      height: HORIZONTAL_LOGO_HEIGHT,
+    };
+  } else {
+    // Vertical layout: Same side-by-side layout but with vertical NVIDIA logo
+    const separatorX = CANVAS_WIDTH / 2;
+    const leftAreaWidth = separatorX - PADDING * 2;
+    const rightAreaXStart = separatorX + SEPARATOR_WIDTH + PADDING;
+    const rightAreaWidth = CANVAS_WIDTH - rightAreaXStart - PADDING;
+    
+    nvidiaArea = {
+      x: PADDING,
+      y: PADDING,
+      width: leftAreaWidth,
+      height: CANVAS_HEIGHT - PADDING * 2,
+    };
+    
+    separatorConfig = {
+      x: separatorX - SEPARATOR_WIDTH / 2,
+      y: (CANVAS_HEIGHT - 550) / 2, // 550px height for vertical
+      width: SEPARATOR_WIDTH,
+      height: 550,
+      isHorizontal: false,
+    };
+    
+    // Vertical layout uses 480x370 logo area
+    partnerArea = {
+      x: rightAreaXStart + Math.max(0, (rightAreaWidth - VERTICAL_LOGO_WIDTH) / 2),
+      y: PADDING + Math.max(0, (CANVAS_HEIGHT - PADDING * 2 - VERTICAL_LOGO_HEIGHT) / 2),
+      width: VERTICAL_LOGO_WIDTH,
+      height: VERTICAL_LOGO_HEIGHT,
+    };
+  }
+  
+  partnerAreaCenter = [
+    partnerArea.x + partnerArea.width / 2,
+    partnerArea.y + partnerArea.height / 2,
   ];
-  const rightAreaPoints = rectToPolygonPoints(rightArea.x, rightArea.y, rightArea.width, rightArea.height);
+  partnerAreaPoints = rectToPolygonPoints(partnerArea.x, partnerArea.y, partnerArea.width, partnerArea.height);
 
   useEffect(() => {
     if (!svgRef.current) return;
@@ -70,46 +127,42 @@ export function LockupPreview() {
     bgRect.setAttribute('fill', isDarkCanvas ? '#000000' : '#ffffff');
     svg.appendChild(bgRect);
 
-    // Left area for permanent company logo
-    const leftAreaX = RIGHT_PADDING;
-    const leftAreaY = TOP_BOTTOM_PADDING;
-    const leftAreaWidth = SEPARATOR_X - RIGHT_PADDING * 2;
-    const leftAreaHeight = CANVAS_HEIGHT - TOP_BOTTOM_PADDING * 2;
-
-    const LOGO_PADDING = 120;
+    // NVIDIA logo area (use lockup logos for horizontal layout)
+    const LOGO_PADDING = 60;
     const logoImg = document.createElementNS('http://www.w3.org/2000/svg', 'image');
-    logoImg.setAttributeNS('http://www.w3.org/1999/xlink', 'href', isDarkCanvas ? '/nvidia-logo-dark.svg' : '/nvidia-logo.svg');
-    logoImg.setAttribute('x', String(leftAreaX + LOGO_PADDING));
-    logoImg.setAttribute('y', String(leftAreaY + LOGO_PADDING));
-    logoImg.setAttribute('width', String(Math.max(0, leftAreaWidth - LOGO_PADDING * 2)));
-    logoImg.setAttribute('height', String(Math.max(0, leftAreaHeight - LOGO_PADDING * 2)));
+    
+    // Choose logo based on layout and theme
+    let logoPath;
+    if (isHorizontal) {
+      logoPath = isDarkCanvas ? '/nvidia-logo-lcokup-dark.svg' : '/nvidia-logo-lockup.svg';
+    } else {
+      logoPath = isDarkCanvas ? '/nvidia-logo-dark.svg' : '/nvidia-logo.svg';
+    }
+    
+    logoImg.setAttributeNS('http://www.w3.org/1999/xlink', 'href', logoPath);
+    logoImg.setAttribute('x', String(nvidiaArea.x + LOGO_PADDING));
+    logoImg.setAttribute('y', String(nvidiaArea.y + LOGO_PADDING));
+    logoImg.setAttribute('width', String(Math.max(0, nvidiaArea.width - LOGO_PADDING * 2)));
+    logoImg.setAttribute('height', String(Math.max(0, nvidiaArea.height - LOGO_PADDING * 2)));
     logoImg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
     svg.appendChild(logoImg);
 
-    // Separator line
-    // Separator rendered via foreignObject to allow HTML styling for theme colors
-    const foreign = document.createElementNS('http://www.w3.org/2000/svg', 'foreignObject');
-    foreign.setAttribute('x', String(SEPARATOR_X - SEPARATOR_WIDTH / 2));
-    foreign.setAttribute('y', String((CANVAS_HEIGHT - 550) / 2));
-    foreign.setAttribute('width', String(SEPARATOR_WIDTH));
-    foreign.setAttribute('height', '550');
+    // Separator (responsive to orientation)
+    const separatorRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    separatorRect.setAttribute('x', String(separatorConfig.x));
+    separatorRect.setAttribute('y', String(separatorConfig.y));
+    separatorRect.setAttribute('width', String(separatorConfig.width));
+    separatorRect.setAttribute('height', String(separatorConfig.height));
+    separatorRect.setAttribute('fill', isDarkCanvas ? '#333333' : '#cccccc');
+    svg.appendChild(separatorRect);
 
-    const div = document.createElement('div');
-    div.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
-    div.style.width = `${SEPARATOR_WIDTH}px`;
-    div.style.height = `550px`;
-    div.style.background = isDarkCanvas ? '#333333' : '#cccccc';
-
-    foreign.appendChild(div);
-    svg.appendChild(foreign);
-
-    // Right guide outline (fixed 480x370)
+    // Partner logo guide outline
     if (showOutline) {
       const guide = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-      guide.setAttribute('x', String(rightArea.x));
-      guide.setAttribute('y', String(rightArea.y));
-      guide.setAttribute('width', String(rightArea.width));
-      guide.setAttribute('height', String(rightArea.height));
+      guide.setAttribute('x', String(partnerArea.x));
+      guide.setAttribute('y', String(partnerArea.y));
+      guide.setAttribute('width', String(partnerArea.width));
+      guide.setAttribute('height', String(partnerArea.height));
       guide.setAttribute('fill', 'none');
       guide.setAttribute('stroke', 'hsl(var(--outline))');
       guide.setAttribute('stroke-width', '2');
@@ -162,7 +215,7 @@ export function LockupPreview() {
         console.error('Error rendering lockup logo:', e);
       }
     }
-  }, [logoData, scale, offsetX, offsetY, showOutline, isDarkCanvas, baseScale, scaleFactor]);
+  }, [logoData, scale, offsetX, offsetY, showOutline, isDarkCanvas, baseScale, scaleFactor, lockupOrientation]);
 
   const processFile = useCallback(async (file: File) => {
     const state = useLogoStore.getState();
@@ -172,7 +225,7 @@ export function LockupPreview() {
       if (fileType === 'image/svg+xml' || file.name.endsWith('.svg')) {
         const svgText = await file.text();
         const bounds = parseSVGBounds(svgText);
-        const { scale, offsetX, offsetY } = fitIntoMask(bounds, rightAreaPoints, rightAreaCenter, 0, 0);
+        const { scale, offsetX, offsetY } = fitIntoMask(bounds, partnerAreaPoints, partnerAreaCenter, 0, 0);
         setAnchor([bounds.minX + bounds.width / 2, bounds.minY + bounds.height / 2]);
         setLogoData(svgText, 'svg');
         setTransform({ baseScale: scale, scaleFactor: 1, scale, offsetX, offsetY });
@@ -181,7 +234,7 @@ export function LockupPreview() {
         const img = await loadImageFromFile(file);
         const { canvas, bounds } = await getAlphaTightBounds(img);
         const svgString = await vectorizeRasterImage(canvas);
-        const { scale, offsetX, offsetY } = fitIntoMask(bounds, rightAreaPoints, rightAreaCenter, 0, 0);
+        const { scale, offsetX, offsetY } = fitIntoMask(bounds, partnerAreaPoints, partnerAreaCenter, 0, 0);
         setAnchor([bounds.minX + bounds.width / 2, bounds.minY + bounds.height / 2]);
         setLogoData(svgString, 'raster');
         setTransform({ baseScale: scale, scaleFactor: 1, scale, offsetX, offsetY });
@@ -191,7 +244,7 @@ export function LockupPreview() {
     } finally {
       setUI({ isProcessing: false });
     }
-  }, [rightAreaPoints, rightAreaCenter, setLogoData, setTransform, setUI, setInitialTransform, setLogoFile]);
+  }, [partnerAreaPoints, partnerAreaCenter, setLogoData, setTransform, setUI, setInitialTransform, setLogoFile]);
 
   const onDrop = useCallback((event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -217,7 +270,8 @@ export function LockupPreview() {
 
   return (
     <div
-      className="relative w-full h-full bg-canvas rounded-lg border border-border overflow-hidden"
+      className="relative w-full h-full rounded-lg border-dashed border-2 border-border overflow-hidden"
+      style={{ backgroundColor: 'rgba(255, 255, 255, 0.1)' }}
       onDrop={onDrop}
       onDragOver={onDragOver}
       onClick={onClickFile}
