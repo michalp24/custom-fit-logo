@@ -359,18 +359,11 @@ export function ControlPanel({ isLockupPage = false }: ControlPanelProps) {
               Show Outline
             </Button>
             
-            <Button variant="ghost" size="sm" onClick={() => setUI({
-            showCanvas: !showCanvas
-          })} className="w-full justify-center text-center nv-button--kind-secondary">
-              {showCanvas ? <Eye className="mr-2 h-4 w-4" /> : <EyeOff className="mr-2 h-4 w-4" />}
-              Show Canvas
-            </Button>
-            
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setUI({ isDarkCanvas: !isDarkCanvas })}
-              className="w-full justify-center text-center nv-button--kind-secondary col-span-2"
+              className="w-full justify-center text-center nv-button--kind-secondary"
             >
               {isDarkCanvas ? <Sun className="mr-2 h-4 w-4" /> : <Moon className="mr-2 h-4 w-4" />}
               {isDarkCanvas ? 'Light Theme' : 'Dark Theme'}

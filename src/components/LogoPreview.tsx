@@ -12,7 +12,7 @@ export function LogoPreview() {
     offsetX, 
     offsetY, 
     showOutline, 
-    showCanvas,
+    isDarkCanvas,
     baseScale,
     scaleFactor,
     setAnchor 
@@ -29,16 +29,14 @@ export function LogoPreview() {
       svg.removeChild(svg.firstChild);
     }
 
-    // Background canvas rect (export area only)
-    if (showCanvas) {
-      const bgRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-      bgRect.setAttribute('x', '0');
-      bgRect.setAttribute('y', '0');
-      bgRect.setAttribute('width', '1250');
-      bgRect.setAttribute('height', '700');
-      bgRect.setAttribute('fill', '#cccccc');
-      svg.appendChild(bgRect);
-    }
+    // Background canvas rect (always visible, theme-aware)
+    const bgRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    bgRect.setAttribute('x', '0');
+    bgRect.setAttribute('y', '0');
+    bgRect.setAttribute('width', '1250');
+    bgRect.setAttribute('height', '700');
+    bgRect.setAttribute('fill', isDarkCanvas ? '#000000' : '#ffffff');
+    svg.appendChild(bgRect);
 
     // Create defs for clipping path
     const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
@@ -117,7 +115,7 @@ export function LogoPreview() {
     } catch (error) {
       console.error('Error rendering logo:', error);
     }
-  }, [logoData, scale, offsetX, offsetY, showOutline, showCanvas, baseScale, scaleFactor]);
+  }, [logoData, scale, offsetX, offsetY, showOutline, isDarkCanvas, baseScale, scaleFactor]);
 
   const processFile = useCallback(async (file: File) => {
     const state = useLogoStore.getState();
