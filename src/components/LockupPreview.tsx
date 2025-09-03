@@ -140,10 +140,36 @@ export function LockupPreview() {
     }
     
     logoImg.setAttributeNS('http://www.w3.org/1999/xlink', 'href', logoPath);
-    logoImg.setAttribute('x', String(nvidiaArea.x + LOGO_PADDING));
-    logoImg.setAttribute('y', String(nvidiaArea.y + LOGO_PADDING));
-    logoImg.setAttribute('width', String(Math.max(0, nvidiaArea.width - LOGO_PADDING * 2)));
-    logoImg.setAttribute('height', String(Math.max(0, nvidiaArea.height - LOGO_PADDING * 2)));
+    
+    // Calculate logo size to match export dimensions
+    if (isHorizontal) {
+      // Horizontal layout: target 692px width (matches export)
+      const targetWidth = 692;
+      const logoAspectRatio = 694 / 133; // lockup logo dimensions
+      const targetHeight = targetWidth / logoAspectRatio;
+      
+      const logoX = nvidiaArea.x + (nvidiaArea.width - targetWidth) / 2;
+      const logoY = nvidiaArea.y + (nvidiaArea.height - targetHeight) / 2;
+      
+      logoImg.setAttribute('x', String(logoX));
+      logoImg.setAttribute('y', String(logoY));
+      logoImg.setAttribute('width', String(targetWidth));
+      logoImg.setAttribute('height', String(targetHeight));
+    } else {
+      // Vertical layout: target 477px width (matches export)
+      const targetWidth = 477;
+      const logoAspectRatio = 480 / 372; // regular logo dimensions
+      const targetHeight = targetWidth / logoAspectRatio;
+      
+      const logoX = nvidiaArea.x + (nvidiaArea.width - targetWidth) / 2;
+      const logoY = nvidiaArea.y + (nvidiaArea.height - targetHeight) / 2;
+      
+      logoImg.setAttribute('x', String(logoX));
+      logoImg.setAttribute('y', String(logoY));
+      logoImg.setAttribute('width', String(targetWidth));
+      logoImg.setAttribute('height', String(targetHeight));
+    }
+    
     logoImg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
     svg.appendChild(logoImg);
 
@@ -270,7 +296,7 @@ export function LockupPreview() {
 
   return (
     <div
-      className="relative w-full h-full rounded-lg border-dashed border-2 border-border overflow-hidden"
+      className="relative w-full h-full rounded-lg border-dashed border-2 border-border overflow-hidden p-5"
       style={{ backgroundColor: 'rgba(255, 255, 255, 0.1)' }}
       onDrop={onDrop}
       onDragOver={onDragOver}

@@ -169,7 +169,7 @@ export function LogoPreview() {
   }, [processFile]);
 
   return (
-    <div className="relative w-full h-full rounded-lg border-dashed border-2 border-border overflow-hidden" style={{ backgroundColor: 'rgba(255, 255, 255, 0.1)' }} onDrop={onDrop} onDragOver={onDragOver} onClick={onClickFile} role="button" aria-label="Drop or click to upload logo" tabIndex={0}>
+    <div className="relative w-full h-full rounded-lg border-dashed border-2 border-border overflow-hidden p-5" style={{ backgroundColor: 'rgba(255, 255, 255, 0.1)' }} onDrop={onDrop} onDragOver={onDragOver} onClick={onClickFile} role="button" aria-label="Drop or click to upload logo" tabIndex={0}>
       <svg
         ref={svgRef}
         viewBox="0 0 1250 700"

@@ -27,16 +27,16 @@ export default function LogoExporter() {
 
       switch (e.code) {
         case 'ArrowUp':
-          setTransform({ offsetY: -nudgeAmount });
+          setTransform({ offsetY: useLogoStore.getState().offsetY - nudgeAmount });
           break;
         case 'ArrowDown':
-          setTransform({ offsetY: nudgeAmount });
+          setTransform({ offsetY: useLogoStore.getState().offsetY + nudgeAmount });
           break;
         case 'ArrowLeft':
-          setTransform({ offsetX: -nudgeAmount });
+          setTransform({ offsetX: useLogoStore.getState().offsetX - nudgeAmount });
           break;
         case 'ArrowRight':
-          setTransform({ offsetX: nudgeAmount });
+          setTransform({ offsetX: useLogoStore.getState().offsetX + nudgeAmount });
           break;
 
         case 'KeyF':
@@ -152,7 +152,7 @@ export default function LogoExporter() {
                 </div>
               )}
             </div>
-            <div className="flex-1 min-h-[250px] lg:min-h-[300px] p-3 lg:p-5 overflow-hidden">
+            <div className="flex-1 min-h-[250px] lg:min-h-[300px] overflow-hidden">
               {isLockup ? <LockupPreview /> : <LogoPreview />}
             </div>
           </div>

@@ -1,4 +1,4 @@
-import { Download, Target, Eye, EyeOff, Sun, Moon } from 'lucide-react';
+import { Download, Target, Eye, EyeOff, Sun, Moon, ChevronDown } from 'lucide-react';
 import { useState } from 'react';
 import { useLogoStore } from '@/store/logoStore';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { MASK_FILL_PATH, MASK_CENTER } from '@/utils/mask';
 interface ControlPanelProps {
@@ -26,6 +27,7 @@ export function ControlPanel({ isLockupPage = false }: ControlPanelProps) {
     isDarkCanvas,
     baseScale,
     scaleFactor,
+    lockupOrientation,
     setTransform,
     setUI,
     center,
@@ -37,6 +39,7 @@ export function ControlPanel({ isLockupPage = false }: ControlPanelProps) {
   // Export modal state
   const [showExportModal, setShowExportModal] = useState(false);
   const [fileName, setFileName] = useState('');
+  const [exportFormat, setExportFormat] = useState('svg');
   const handleExport = () => {
     if (!logoData && !isLockupPage) {
       toast({
@@ -52,10 +55,22 @@ export function ControlPanel({ isLockupPage = false }: ControlPanelProps) {
     if (logoFile) {
       // Use uploaded file name without extension
       const nameWithoutExt = logoFile.name.replace(/\.[^/.]+$/, '');
-      defaultName = isLockupPage ? `${nameWithoutExt}-lockup` : nameWithoutExt;
+      if (isLockupPage) {
+        // Use the correct naming convention for lockup
+        const orientation = lockupOrientation === 'vertical' ? 'v' : 'h';
+        const theme = isDarkCanvas ? 'on-dark' : 'on-light';
+        defaultName = `nvidia-and-${nameWithoutExt}-partnership-${orientation}-${theme}`;
+      } else {
+        defaultName = nameWithoutExt;
+      }
     } else {
-      // Fallback to generic names
-      defaultName = isLockupPage ? 'logo-lockup' : 'logo-in-mask';
+      if (isLockupPage) {
+        const orientation = lockupOrientation === 'vertical' ? 'v' : 'h';
+        const theme = isDarkCanvas ? 'on-dark' : 'on-light';
+        defaultName = `nvidia-and-CHANGE-partnership-${orientation}-${theme}`;
+      } else {
+        defaultName = 'logo-in-mask';
+      }
     }
     setFileName(defaultName);
     setShowExportModal(true);
@@ -66,13 +81,13 @@ export function ControlPanel({ isLockupPage = false }: ControlPanelProps) {
     setShowExportModal(false);
     
     if (isLockupPage) {
-      exportLockupCanvas(finalFileName);
+      exportLockupCanvas(finalFileName, exportFormat);
     } else {
-      exportSingleLogo(finalFileName);
+      exportSingleLogo(finalFileName, exportFormat);
     }
   };
 
-  const exportSingleLogo = async (filename: string) => {
+  const exportSingleLogo = async (filename: string, format: string = 'svg') => {
     try {
       // Create clean SVG with only the transformed logo
       const parser = new DOMParser();
@@ -120,22 +135,7 @@ export function ControlPanel({ isLockupPage = false }: ControlPanelProps) {
       exportSvg.appendChild(logoGroup);
 
       // Create and download the file
-      const svgString = new XMLSerializer().serializeToString(exportSvg);
-      const blob = new Blob([svgString], {
-        type: 'image/svg+xml'
-      });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${filename}.svg`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      toast({
-        title: "Export successful",
-        description: "Your fitted logo has been exported as SVG."
-      });
+      await downloadSvgAsFormat(exportSvg, filename, format);
     } catch (error) {
       console.error('Export error:', error);
       toast({
@@ -146,7 +146,7 @@ export function ControlPanel({ isLockupPage = false }: ControlPanelProps) {
     }
   };
 
-  const exportLockupCanvas = async (filename: string) => {
+  const exportLockupCanvas = async (filename: string, format: string = 'svg') => {
     try {
       // Create full lockup canvas SVG
       const CANVAS_WIDTH = 1920;
@@ -291,22 +291,7 @@ export function ControlPanel({ isLockupPage = false }: ControlPanelProps) {
       }
 
       // Create and download the file
-      const svgString = new XMLSerializer().serializeToString(exportSvg);
-      const blob = new Blob([svgString], {
-        type: 'image/svg+xml'
-      });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${filename}.svg`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      toast({
-        title: "Export successful",
-        description: "Your logo lockup has been exported as SVG."
-      });
+      await downloadSvgAsFormat(exportSvg, filename, format);
     } catch (error) {
       console.error('Export error:', error);
       toast({
@@ -316,12 +301,103 @@ export function ControlPanel({ isLockupPage = false }: ControlPanelProps) {
       });
     }
   };
+
+  // Helper function to download SVG in different formats
+  const downloadSvgAsFormat = async (svgElement: SVGSVGElement, filename: string, format: string) => {
+    try {
+      if (format === 'svg') {
+        // SVG export
+        const svgString = new XMLSerializer().serializeToString(svgElement);
+        const blob = new Blob([svgString], { type: 'image/svg+xml' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${filename}.svg`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        toast({
+          title: "Export successful",
+          description: `Your logo has been exported as SVG.`
+        });
+      } else {
+        // PNG/JPG export - clone SVG and modify for format
+        const svgClone = svgElement.cloneNode(true) as SVGSVGElement;
+        
+        // For PNG, remove background rect to make transparent
+        if (format === 'png') {
+          const bgRects = svgClone.querySelectorAll('rect[fill="#000000"], rect[fill="#ffffff"]');
+          bgRects.forEach(rect => {
+            const fill = rect.getAttribute('fill');
+            if (fill === '#000000' || fill === '#ffffff') {
+              rect.remove();
+            }
+          });
+        }
+        
+        const svgString = new XMLSerializer().serializeToString(svgClone);
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d')!;
+        const img = new Image();
+        
+        // Set canvas size to match SVG
+        const svgWidth = parseInt(svgElement.getAttribute('width') || '1250');
+        const svgHeight = parseInt(svgElement.getAttribute('height') || '700');
+        canvas.width = svgWidth;
+        canvas.height = svgHeight;
+        
+        // For JPG, add white background; PNG stays transparent
+        if (format === 'jpg') {
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+        
+        img.onload = () => {
+          ctx.drawImage(img, 0, 0);
+          canvas.toBlob((blob) => {
+            if (blob) {
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `${filename}.${format}`;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+              
+              toast({
+                title: "Export successful",
+                description: `Your logo has been exported as ${format.toUpperCase()}.`
+              });
+            }
+          }, `image/${format}`, 0.95);
+        };
+        
+        // Convert SVG to data URL for canvas
+        const svgBlob = new Blob([svgString], { type: 'image/svg+xml' });
+        const svgUrl = URL.createObjectURL(svgBlob);
+        img.src = svgUrl;
+      }
+    } catch (error) {
+      console.error('Export error:', error);
+      toast({
+        title: "Export failed",
+        description: "There was an error exporting your logo.",
+        variant: "destructive"
+      });
+    }
+  };
+
   const handleNudge = (direction: 'up' | 'down' | 'left' | 'right', amount: number = 1) => {
-    const newOffset = {
-      offsetX: offsetX + (direction === 'left' ? -amount : direction === 'right' ? amount : 0),
-      offsetY: offsetY + (direction === 'up' ? -amount : direction === 'down' ? amount : 0)
-    };
-    setTransform(newOffset);
+    const deltaX = direction === 'left' ? -amount : direction === 'right' ? amount : 0;
+    const deltaY = direction === 'up' ? -amount : direction === 'down' ? amount : 0;
+    
+    setTransform({
+      offsetX: offsetX + deltaX,
+      offsetY: offsetY + deltaY
+    });
   };
   return <div className="rounded-lg border border-border p-6 space-y-6 bg-[#0c0c0c]">
       <div className="space-y-4">
@@ -416,7 +492,7 @@ export function ControlPanel({ isLockupPage = false }: ControlPanelProps) {
         <div className="grid grid-cols-1 gap-3">
           <Button onClick={handleExport} disabled={!logoData} className="w-full text-neutral-950">
             <Download className="mr-2 h-4 w-4" />
-            Export SVG
+            Export
           </Button>
         </div>
       </div>
@@ -443,10 +519,25 @@ export function ControlPanel({ isLockupPage = false }: ControlPanelProps) {
                 placeholder={isLockupPage ? 'logo-lockup' : 'logo-in-mask'}
                 className="w-full"
               />
-              <p className="text-sm text-muted-foreground">
-                File will be saved as: <strong>{fileName.trim() || (isLockupPage ? 'logo-lockup' : 'logo-in-mask')}.svg</strong>
-              </p>
             </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="format">Export Format</Label>
+              <Select value={exportFormat} onValueChange={setExportFormat}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select format" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="svg">SVG (Vector)</SelectItem>
+                  <SelectItem value="png">PNG (Transparent)</SelectItem>
+                  <SelectItem value="jpg">JPG (White Background)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <p className="text-sm text-muted-foreground">
+              File will be saved as: <strong>{fileName.trim() || (isLockupPage ? 'logo-lockup' : 'logo-in-mask')}.{exportFormat}</strong>
+            </p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowExportModal(false)}>
@@ -454,7 +545,7 @@ export function ControlPanel({ isLockupPage = false }: ControlPanelProps) {
             </Button>
             <Button onClick={handleConfirmExport} className="text-neutral-950">
               <Download className="mr-2 h-4 w-4" />
-              Export SVG
+              Export
             </Button>
           </DialogFooter>
         </DialogContent>
