@@ -377,11 +377,14 @@ export function fitIntoMask(
   const paddingFactor = 1 - paddingPct / 100;
   bestScale *= paddingFactor;
   
-  // Calculate final offset
+  // Calculate final offset for the new transform logic
+  // New transform order: translate(-logoCenter) -> scale -> translate(logoCenter) -> rotate -> translate(offset)
+  // After the scale sequence, the logo is scaled but still at its original position
+  // So we need to translate from the original logo center to the mask center
   const logoCenterX = logoBounds.minX + logoBounds.width / 2;
   const logoCenterY = logoBounds.minY + logoBounds.height / 2;
-  const offsetX = centerX - (logoCenterX * bestScale);
-  const offsetY = centerY - (logoCenterY * bestScale);
+  const offsetX = centerX - logoCenterX;
+  const offsetY = centerY - logoCenterY;
   
   return { scale: bestScale, offsetX, offsetY };
 }

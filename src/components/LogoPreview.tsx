@@ -9,13 +9,15 @@ export function LogoPreview() {
   const { 
     logoData, 
     scale, 
-    rotation, 
     offsetX, 
     offsetY, 
     showOutline, 
-    showCanvas 
+    showCanvas,
+    baseScale,
+    scaleFactor,
+    setAnchor 
   } = useLogoStore();
-  const { setLogoFile, setLogoData, setTransform, setUI } = useLogoStore();
+  const { setLogoFile, setLogoData, setTransform, setUI, setInitialTransform } = useLogoStore();
 
   useEffect(() => {
     if (!svgRef.current || !logoData) return;
@@ -71,17 +73,31 @@ export function LogoPreview() {
       // Create a group for the logo with transforms
       const logoGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
       
-      // Apply transforms
-      const transforms = [];
+      // Get logo bounds and center for proper scaling anchor
+      const logoBounds = parseSVGBounds(logoData);
+      const logoCenterX = logoBounds.minX + logoBounds.width / 2;
+      const logoCenterY = logoBounds.minY + logoBounds.height / 2;
+      const [guideCenterX, guideCenterY] = MASK_CENTER;
+      
+      // Apply transforms in proper order for scaling around logo center
+      // SVG transforms apply right-to-left, so we need:
+      // 1. translate(offsetX, offsetY) - position adjustment 
+      // 2. translate(logoCenterX, logoCenterY) - move to logo center
+      // 3. scale(scale) - scale around logo center
+      // 4. translate(-logoCenterX, -logoCenterY) - move back from logo center
+      
+      const transforms = [] as string[];
+      
+      // Order matters - these are applied right-to-left in SVG
       if (offsetX !== 0 || offsetY !== 0) {
         transforms.push(`translate(${offsetX}, ${offsetY})`);
       }
+      
+      // Scale around logo's own center
       if (scale !== 1) {
+        transforms.push(`translate(${logoCenterX}, ${logoCenterY})`);
         transforms.push(`scale(${scale})`);
-      }
-      if (rotation !== 0) {
-        const [centerX, centerY] = MASK_CENTER;
-        transforms.push(`rotate(${rotation}, ${centerX}, ${centerY})`);
+        transforms.push(`translate(${-logoCenterX}, ${-logoCenterY})`);
       }
       
       if (transforms.length > 0) {
@@ -101,7 +117,7 @@ export function LogoPreview() {
     } catch (error) {
       console.error('Error rendering logo:', error);
     }
-  }, [logoData, scale, rotation, offsetX, offsetY, showOutline, showCanvas]);
+  }, [logoData, scale, offsetX, offsetY, showOutline, showCanvas, baseScale, scaleFactor]);
 
   const processFile = useCallback(async (file: File) => {
     const state = useLogoStore.getState();
@@ -111,16 +127,20 @@ export function LogoPreview() {
       if (fileType === 'image/svg+xml' || file.name.endsWith('.svg')) {
         const svgText = await file.text();
         const bounds = parseSVGBounds(svgText);
-        const { scale, offsetX, offsetY } = fitIntoMask(bounds, MASK_POINTS, MASK_CENTER, state.padding);
+        const { scale, offsetX, offsetY } = fitIntoMask(bounds, MASK_POINTS, MASK_CENTER, 0, 0);
         setLogoData(svgText, 'svg');
-        setTransform({ scale, offsetX, offsetY });
+        setTransform({ baseScale: scale, scaleFactor: 1, scale, offsetX, offsetY });
+        setInitialTransform({ scale, offsetX, offsetY });
+        setAnchor([bounds.minX + bounds.width / 2, bounds.minY + bounds.height / 2]);
       } else if (fileType.startsWith('image/')) {
         const img = await loadImageFromFile(file);
         const { canvas, bounds } = await getAlphaTightBounds(img);
         const svgString = await vectorizeRasterImage(canvas);
-        const { scale, offsetX, offsetY } = fitIntoMask(bounds, MASK_POINTS, MASK_CENTER, state.padding);
+        const { scale, offsetX, offsetY } = fitIntoMask(bounds, MASK_POINTS, MASK_CENTER, 0, 0);
         setLogoData(svgString, 'raster');
-        setTransform({ scale, offsetX, offsetY });
+        setTransform({ baseScale: scale, scaleFactor: 1, scale, offsetX, offsetY });
+        setInitialTransform({ scale, offsetX, offsetY });
+        setAnchor([bounds.minX + bounds.width / 2, bounds.minY + bounds.height / 2]);
       }
       setLogoFile(file);
     } finally {
@@ -164,9 +184,9 @@ export function LogoPreview() {
       {!logoData && (
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="text-center space-y-2">
-            <div className="text-muted-foreground text-lg">Preview Area</div>
+            <div className="text-muted-foreground text-lg">Drop Logo or Upload from File</div>
             <div className="text-sm text-muted-foreground">
-              Drop or click to upload a logo (SVG/PNG/JPG)
+              Accepted files: SVG, PNG, or JPG
             </div>
           </div>
         </div>

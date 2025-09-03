@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 
 export function UploadZone() {
-  const { setLogoFile, setLogoData, setTransform, setUI } = useLogoStore();
+  const { setLogoFile, setLogoData, setTransform, setUI, setInitialTransform, setAnchor } = useLogoStore();
   const { toast } = useToast();
 
   const processFile = useCallback(async (file: File) => {
@@ -22,10 +22,12 @@ export function UploadZone() {
         // Handle SVG
         const svgText = await file.text();
         const bounds = parseSVGBounds(svgText);
-        const { scale, offsetX, offsetY } = fitIntoMask(bounds, MASK_POINTS, MASK_CENTER, state.padding);
-        
+        const { scale, offsetX, offsetY } = fitIntoMask(bounds, MASK_POINTS, MASK_CENTER, 0);
+        const anchor: [number, number] = [bounds.minX + bounds.width / 2, bounds.minY + bounds.height / 2];
         setLogoData(svgText, 'svg');
-        setTransform({ scale, offsetX, offsetY });
+        setTransform({ baseScale: scale, scaleFactor: 1, scale, offsetX, offsetY });
+        setAnchor(anchor);
+        setInitialTransform({ scale, offsetX, offsetY });
         
         toast({
           title: "SVG loaded successfully",
@@ -37,10 +39,13 @@ export function UploadZone() {
         const { canvas, bounds } = await getAlphaTightBounds(img);
         const svgString = await vectorizeRasterImage(canvas);
         
-        const { scale, offsetX, offsetY } = fitIntoMask(bounds, MASK_POINTS, MASK_CENTER, state.padding);
+        const { scale, offsetX, offsetY } = fitIntoMask(bounds, MASK_POINTS, MASK_CENTER, 0);
+        const anchor: [number, number] = [bounds.minX + bounds.width / 2, bounds.minY + bounds.height / 2];
         
         setLogoData(svgString, 'raster');
-        setTransform({ scale, offsetX, offsetY });
+        setTransform({ baseScale: scale, scaleFactor: 1, scale, offsetX, offsetY });
+        setAnchor(anchor);
+        setInitialTransform({ scale, offsetX, offsetY });
         
         toast({
           title: "Image vectorized successfully",

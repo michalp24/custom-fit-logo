@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { LogoPreview } from '@/components/LogoPreview';
+import { LockupPreview } from '@/components/LockupPreview';
 import { ControlPanel } from '@/components/ControlPanel';
 import { useLogoStore } from '@/store/logoStore';
 
@@ -9,6 +10,7 @@ export default function LogoExporter() {
   const location = useLocation();
   const params = new URLSearchParams(location.search);
   const logoMode = params.get('logo') || 'default';
+  const isLockup = logoMode === 'partner';
   const isDefault = logoMode !== 'partner';
 
   // Keyboard shortcuts
@@ -36,12 +38,7 @@ export default function LogoExporter() {
         case 'ArrowRight':
           setTransform({ offsetX: nudgeAmount });
           break;
-        case 'BracketLeft': // [
-          setTransform({ rotation: -rotateAmount });
-          break;
-        case 'BracketRight': // ]
-          setTransform({ rotation: rotateAmount });
-          break;
+
         case 'KeyF':
           refit();
           break;
@@ -107,19 +104,19 @@ export default function LogoExporter() {
 
       {/* Main Content */}
       <main className="container mx-auto px-6 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-[calc(100vh-180px)]">
-          {/* Preview Area (expanded) */}
-          <div className="lg:col-span-1">
+        <div className="flex flex-col lg:flex-row gap-8 h-[calc(100vh-180px)]">
+          {/* Preview Area (65% width) */}
+          <div className="flex-1 lg:w-[65%]">
             <h2 className="text-xl font-semibold mb-4">Preview</h2>
             <div className="h-full min-h-[400px]">
-              <LogoPreview />
+              {isLockup ? <LockupPreview /> : <LogoPreview />}
             </div>
           </div>
 
-          {/* Control Panel */}
-          <div className="lg:col-span-1">
+          {/* Control Panel (35% width) */}
+          <div className="flex-shrink-0 lg:w-[35%]">
             <h2 className="text-xl font-semibold mb-4">Controls</h2>
-            <ControlPanel />
+            <ControlPanel isLockupPage={isLockup} />
           </div>
         </div>
       </main>
