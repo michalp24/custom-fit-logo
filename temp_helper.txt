@@ -1,0 +1,19 @@
+// Helper function to get SVG dimensions (same as in preview components)
+function getSVGDimensions(svgString: string) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(svgString, 'image/svg+xml');
+  const svg = doc.documentElement;
+  
+  const width = parseInt(svg.getAttribute('width') || '0');
+  const height = parseInt(svg.getAttribute('height') || '0');
+  
+  return {
+    minX: 0,
+    maxX: width,
+    minY: 0,
+    maxY: height,
+    width: width,
+    height: height
+  };
+}
+

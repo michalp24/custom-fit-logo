@@ -13,25 +13,6 @@ import { MASK_FILL_PATH, MASK_CENTER } from '@/utils/mask';
 interface ControlPanelProps {
   isLockupPage?: boolean;
 }
-// Helper function to get SVG dimensions (same as in preview components)
-function getSVGDimensions(svgString: string) {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(svgString, 'image/svg+xml');
-  const svg = doc.documentElement;
-  
-  const width = parseInt(svg.getAttribute('width') || '0');
-  const height = parseInt(svg.getAttribute('height') || '0');
-  
-  return {
-    minX: 0,
-    maxX: width,
-    minY: 0,
-    maxY: height,
-    width: width,
-    height: height
-  };
-}
-
 
 export function ControlPanel({ isLockupPage = false }: ControlPanelProps) {
   const {
@@ -122,7 +103,7 @@ export function ControlPanel({ isLockupPage = false }: ControlPanelProps) {
 
       // Create group with transforms (matching preview logic)
       const { parseSVGBounds } = await import('../utils/logoProcessor');
-      const logoBounds = getSVGDimensions(logoData);
+      const logoBounds = parseSVGBounds(logoData);
       const logoCenterX = logoBounds.minX + logoBounds.width / 2;
       const logoCenterY = logoBounds.minY + logoBounds.height / 2;
       
@@ -276,7 +257,7 @@ export function ControlPanel({ isLockupPage = false }: ControlPanelProps) {
         const parser = new DOMParser();
         const logoDoc = parser.parseFromString(logoData, 'image/svg+xml');
         const logoSvg = logoDoc.documentElement;
-        const logoBounds = getSVGDimensions(logoData);
+        const logoBounds = parseSVGBounds(logoData);
         const logoCenterX = logoBounds.minX + logoBounds.width / 2;
         const logoCenterY = logoBounds.minY + logoBounds.height / 2;
 
