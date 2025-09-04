@@ -145,8 +145,6 @@ export function getAlphaTightBounds(imageElement: HTMLImageElement): Promise<{ c
 export function vectorizeRasterImage(canvas: HTMLCanvasElement): Promise<string> {
   return new Promise((resolve, reject) => {
     try {
-      const imageData = canvas.toDataURL('image/png');
-      
       // Configure ImageTracer for logo-friendly settings
       const options = {
         pathomit: 1,
@@ -161,9 +159,37 @@ export function vectorizeRasterImage(canvas: HTMLCanvasElement): Promise<string>
         colorquantcycles: 3
       };
       
-      // Use the correct ImageTracer API
-      const svgString = (ImageTracer as any).imageDataToSVG(imageData, options);
-      resolve(svgString);
+      // Try different ImageTracer API methods
+      console.log('ImageTracer available methods:', Object.keys(ImageTracer));
+      
+      // Method 1: Try imageToSVG with canvas data URL
+      const dataURL = canvas.toDataURL('image/png');
+      
+      // Check if imageToSVG exists
+      if (typeof (ImageTracer as any).imageToSVG === 'function') {
+        console.log('Using imageToSVG method');
+        const svgString = (ImageTracer as any).imageToSVG(dataURL, options);
+        resolve(svgString);
+        return;
+      }
+      
+      // Method 2: Try appendSVGString
+      if (typeof (ImageTracer as any).appendSVGString === 'function') {
+        console.log('Using appendSVGString method');
+        const svgString = (ImageTracer as any).appendSVGString(dataURL, options);
+        resolve(svgString);
+        return;
+      }
+      
+      // Method 3: Try the default export function
+      if (typeof ImageTracer === 'function') {
+        console.log('Using ImageTracer as function');
+        const svgString = ImageTracer(dataURL, options);
+        resolve(svgString);
+        return;
+      }
+      
+      reject(new Error('No compatible ImageTracer method found. Available methods: ' + Object.keys(ImageTracer).join(', ')));
     } catch (error) {
       reject(error);
     }

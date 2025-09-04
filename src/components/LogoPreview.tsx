@@ -129,7 +129,6 @@ export function LogoPreview() {
       const isValidSVG = fileType === 'image/svg+xml' || file.name.toLowerCase().endsWith('.svg');
       const isValidPNG = fileType === 'image/png' || file.name.toLowerCase().endsWith('.png');
       
-      console.log('File validation:', { fileName: file.name, fileType, isValidSVG, isValidPNG });
       
       if (!isValidSVG && !isValidPNG) {
         toast({
@@ -149,21 +148,15 @@ export function LogoPreview() {
         setInitialTransform({ scale, offsetX, offsetY });
         setAnchor([bounds.minX + bounds.width / 2, bounds.minY + bounds.height / 2]);
       } else if (isValidPNG) {
-        console.log('Processing PNG file...');
         try {
           const img = await loadImageFromFile(file);
-          console.log('Image loaded:', img.width, img.height);
           const { canvas, bounds } = await getAlphaTightBounds(img);
-          console.log('Alpha bounds calculated:', bounds);
           const svgString = await vectorizeRasterImage(canvas);
-          console.log('Image vectorized, SVG length:', svgString.length);
           const { scale, offsetX, offsetY } = fitIntoMask(bounds, MASK_POINTS, MASK_CENTER, 0, 0);
-          console.log('Fit calculated:', { scale, offsetX, offsetY });
           setLogoData(svgString, 'raster');
           setTransform({ baseScale: scale, scaleFactor: 1, scale, offsetX, offsetY });
           setInitialTransform({ scale, offsetX, offsetY });
           setAnchor([bounds.minX + bounds.width / 2, bounds.minY + bounds.height / 2]);
-          console.log('PNG processing completed successfully');
         } catch (pngError) {
           console.error('PNG processing error:', pngError);
           toast({
