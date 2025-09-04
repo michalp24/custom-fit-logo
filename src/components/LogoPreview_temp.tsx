@@ -5,25 +5,6 @@ import { MASK_OUTLINE_PATH, MASK_FILL_PATH, MASK_CENTER, MASK_POINTS } from '@/u
 import { loadImageFromFile, parseSVGBounds, getAlphaTightBounds, vectorizeRasterImage, fitIntoMask } from '@/utils/logoProcessor';
 import { useToast } from '@/hooks/use-toast';
 
-// Helper function to extract SVG dimensions from vectorized SVG
-function getSVGDimensions(svgString: string) {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(svgString, 'image/svg+xml');
-  const svg = doc.documentElement;
-  
-  const width = parseInt(svg.getAttribute('width') || '0');
-  const height = parseInt(svg.getAttribute('height') || '0');
-  
-  return {
-    minX: 0,
-    maxX: width,
-    minY: 0,
-    maxY: height,
-    width: width,
-    height: height
-  };
-}
-
 export function LogoPreview() {
   const svgRef = useRef<SVGSVGElement>(null);
   const { toast } = useToast();
@@ -142,8 +123,8 @@ export function LogoPreview() {
           const { canvas } = await getAlphaTightBounds(img);
           const svgString = await vectorizeRasterImage(canvas);
           
-          // Use SVG dimensions directly instead of parseSVGBounds
-          const bounds = getSVGDimensions(svgString);
+          // Use the EXACT same approach as SVG processing
+          const bounds = parseSVGBounds(svgString);
           const { scale, offsetX, offsetY } = fitIntoMask(bounds, MASK_POINTS, MASK_CENTER, 0, 0);
           setLogoData(svgString, 'raster');
           setTransform({ baseScale: scale, scaleFactor: 1, scale, offsetX, offsetY });

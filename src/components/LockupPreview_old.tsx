@@ -25,25 +25,6 @@ function rectToPolygonPoints(x: number, y: number, width: number, height: number
   ];
 }
 
-// Helper function to extract SVG dimensions from vectorized SVG
-function getSVGDimensions(svgString: string) {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(svgString, 'image/svg+xml');
-  const svg = doc.documentElement;
-  
-  const width = parseInt(svg.getAttribute('width') || '0');
-  const height = parseInt(svg.getAttribute('height') || '0');
-  
-  return {
-    minX: 0,
-    maxX: width,
-    minY: 0,
-    maxY: height,
-    width: width,
-    height: height
-  };
-}
-
 export function LockupPreview() {
   const svgRef = useRef<SVGSVGElement>(null);
   const { toast } = useToast();
@@ -280,9 +261,7 @@ export function LockupPreview() {
       if (isValidSVG) {
         const svgText = await file.text();
         const bounds = parseSVGBounds(svgText);
-        console.log('SVG bounds:', bounds);
         const { scale, offsetX, offsetY } = fitIntoMask(bounds, partnerAreaPoints, partnerAreaCenter, 0, 0);
-        console.log('SVG fit result:', { scale, offsetX, offsetY });
         setAnchor([bounds.minX + bounds.width / 2, bounds.minY + bounds.height / 2]);
         setLogoData(svgText, 'svg');
         setTransform({ baseScale: scale, scaleFactor: 1, scale, offsetX, offsetY });
@@ -292,13 +271,9 @@ export function LockupPreview() {
         const { canvas } = await getAlphaTightBounds(img);
         const svgString = await vectorizeRasterImage(canvas);
         
-        console.log('Vectorized SVG string (first 200 chars):', svgString.substring(0, 200));
-        
-        // Use SVG dimensions directly instead of parseSVGBounds
-        const bounds = getSVGDimensions(svgString);
-        console.log('PNG vectorized bounds (from SVG attributes):', bounds);
+        // Use the EXACT same approach as SVG processing
+        const bounds = parseSVGBounds(svgString);
         const { scale, offsetX, offsetY } = fitIntoMask(bounds, partnerAreaPoints, partnerAreaCenter, 0, 0);
-        console.log('PNG fit result:', { scale, offsetX, offsetY });
         setAnchor([bounds.minX + bounds.width / 2, bounds.minY + bounds.height / 2]);
         setLogoData(svgString, 'raster');
         setTransform({ baseScale: scale, scaleFactor: 1, scale, offsetX, offsetY });
