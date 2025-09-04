@@ -72,7 +72,7 @@ export default function LogoExporter() {
               <div>
                 <h1 className="text-2xl font-bold">Logo Exporter</h1>
                 <p className="text-sm text-muted-foreground">
-                  Fit logos inside custom outlines and export clean SVGs
+                  Export logos in SVG, PNG, and JPG formats using our custom layout
                 </p>
               </div>
             </div>
@@ -195,12 +195,20 @@ export default function LogoExporter() {
                   NVIDIA Web Design System
                 </a>
                 <a
+                  href="https://brand.nvidia.com/d/9M9wySQgZT2X/n-a?#/nvidia-logo/logo-quick-start-guideline/co-branding-layout"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-[#898989] hover:text-white transition-colors"
+                >
+                  Co-branding Guidelines
+                </a>
+                <a
                   href="https://author.nvidia.com/assets.html/content/dam/logos"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-sm text-[#898989] hover:text-white transition-colors"
                 >
-                  Logo DAM
+                  Logo DAM (VPN Required)
                 </a>
               </div>
             </div>

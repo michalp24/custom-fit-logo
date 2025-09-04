@@ -2,6 +2,7 @@ import type React from 'react';
 import { useCallback, useEffect, useRef } from 'react';
 import { useLogoStore } from '@/store/logoStore';
 import { loadImageFromFile, parseSVGBounds, getAlphaTightBounds, vectorizeRasterImage, fitIntoMask } from '@/utils/logoProcessor';
+import { useToast } from '@/hooks/use-toast';
 
 // Lockup canvas constants
 const CANVAS_WIDTH = 1920;
@@ -25,6 +26,7 @@ function rectToPolygonPoints(x: number, y: number, width: number, height: number
 
 export function LockupPreview() {
   const svgRef = useRef<SVGSVGElement>(null);
+  const { toast } = useToast();
   const {
     logoData,
     scale,
@@ -248,7 +250,21 @@ export function LockupPreview() {
     setUI({ isProcessing: true });
     try {
       const fileType = file.type;
-      if (fileType === 'image/svg+xml' || file.name.endsWith('.svg')) {
+      
+      // Validate file type - only allow SVG and PNG
+      const isValidSVG = fileType === 'image/svg+xml' || file.name.toLowerCase().endsWith('.svg');
+      const isValidPNG = fileType === 'image/png' || file.name.toLowerCase().endsWith('.png');
+      
+      if (!isValidSVG && !isValidPNG) {
+        toast({
+          title: "Invalid file type",
+          description: "Please upload only SVG or PNG files.",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      if (isValidSVG) {
         const svgText = await file.text();
         const bounds = parseSVGBounds(svgText);
         const { scale, offsetX, offsetY } = fitIntoMask(bounds, partnerAreaPoints, partnerAreaCenter, 0, 0);
@@ -256,7 +272,7 @@ export function LockupPreview() {
         setLogoData(svgText, 'svg');
         setTransform({ baseScale: scale, scaleFactor: 1, scale, offsetX, offsetY });
         setInitialTransform({ scale, offsetX, offsetY });
-      } else if (fileType.startsWith('image/')) {
+      } else if (isValidPNG) {
         const img = await loadImageFromFile(file);
         const { canvas, bounds } = await getAlphaTightBounds(img);
         const svgString = await vectorizeRasterImage(canvas);

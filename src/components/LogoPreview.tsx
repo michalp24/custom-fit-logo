@@ -3,9 +3,11 @@ import type React from 'react';
 import { useLogoStore } from '@/store/logoStore';
 import { MASK_OUTLINE_PATH, MASK_FILL_PATH, MASK_CENTER, MASK_POINTS } from '@/utils/mask';
 import { loadImageFromFile, parseSVGBounds, getAlphaTightBounds, vectorizeRasterImage, fitIntoMask } from '@/utils/logoProcessor';
+import { useToast } from '@/hooks/use-toast';
 
 export function LogoPreview() {
   const svgRef = useRef<SVGSVGElement>(null);
+  const { toast } = useToast();
   const { 
     logoData, 
     scale, 
@@ -122,7 +124,23 @@ export function LogoPreview() {
     setUI({ isProcessing: true });
     try {
       const fileType = file.type;
-      if (fileType === 'image/svg+xml' || file.name.endsWith('.svg')) {
+      
+      // Validate file type - only allow SVG and PNG
+      const isValidSVG = fileType === 'image/svg+xml' || file.name.toLowerCase().endsWith('.svg');
+      const isValidPNG = fileType === 'image/png' || file.name.toLowerCase().endsWith('.png');
+      
+      console.log('File validation:', { fileName: file.name, fileType, isValidSVG, isValidPNG });
+      
+      if (!isValidSVG && !isValidPNG) {
+        toast({
+          title: "Invalid file type",
+          description: "Please upload only SVG or PNG files.",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      if (isValidSVG) {
         const svgText = await file.text();
         const bounds = parseSVGBounds(svgText);
         const { scale, offsetX, offsetY } = fitIntoMask(bounds, MASK_POINTS, MASK_CENTER, 0, 0);
@@ -130,15 +148,31 @@ export function LogoPreview() {
         setTransform({ baseScale: scale, scaleFactor: 1, scale, offsetX, offsetY });
         setInitialTransform({ scale, offsetX, offsetY });
         setAnchor([bounds.minX + bounds.width / 2, bounds.minY + bounds.height / 2]);
-      } else if (fileType.startsWith('image/')) {
-        const img = await loadImageFromFile(file);
-        const { canvas, bounds } = await getAlphaTightBounds(img);
-        const svgString = await vectorizeRasterImage(canvas);
-        const { scale, offsetX, offsetY } = fitIntoMask(bounds, MASK_POINTS, MASK_CENTER, 0, 0);
-        setLogoData(svgString, 'raster');
-        setTransform({ baseScale: scale, scaleFactor: 1, scale, offsetX, offsetY });
-        setInitialTransform({ scale, offsetX, offsetY });
-        setAnchor([bounds.minX + bounds.width / 2, bounds.minY + bounds.height / 2]);
+      } else if (isValidPNG) {
+        console.log('Processing PNG file...');
+        try {
+          const img = await loadImageFromFile(file);
+          console.log('Image loaded:', img.width, img.height);
+          const { canvas, bounds } = await getAlphaTightBounds(img);
+          console.log('Alpha bounds calculated:', bounds);
+          const svgString = await vectorizeRasterImage(canvas);
+          console.log('Image vectorized, SVG length:', svgString.length);
+          const { scale, offsetX, offsetY } = fitIntoMask(bounds, MASK_POINTS, MASK_CENTER, 0, 0);
+          console.log('Fit calculated:', { scale, offsetX, offsetY });
+          setLogoData(svgString, 'raster');
+          setTransform({ baseScale: scale, scaleFactor: 1, scale, offsetX, offsetY });
+          setInitialTransform({ scale, offsetX, offsetY });
+          setAnchor([bounds.minX + bounds.width / 2, bounds.minY + bounds.height / 2]);
+          console.log('PNG processing completed successfully');
+        } catch (pngError) {
+          console.error('PNG processing error:', pngError);
+          toast({
+            title: "PNG processing failed",
+            description: "There was an error processing your PNG file.",
+            variant: "destructive"
+          });
+          return;
+        }
       }
       setLogoFile(file);
     } finally {
@@ -160,7 +194,7 @@ export function LogoPreview() {
   const onClickFile = useCallback(() => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.svg,.png,.jpg,.jpeg,image/svg+xml,image/png,image/jpeg';
+    input.accept = '.svg,.png,image/svg+xml,image/png';
     input.onchange = () => {
       const file = input.files?.[0];
       if (file) processFile(file);
@@ -181,12 +215,12 @@ export function LogoPreview() {
       
       {!logoData && (
         <div className="absolute inset-0 flex items-center justify-center">
-          <div className="text-center space-y-2">
-            <div className="text-muted-foreground text-lg">Drop Logo or Upload from File</div>
-            <div className="text-sm text-muted-foreground">
-              Accepted files: SVG, PNG, or JPG
+                      <div className="text-center space-y-2">
+              <div className="text-muted-foreground text-lg">Drop Logo or Upload from File</div>
+              <div className="text-sm text-muted-foreground">
+                Accepted files: SVG or PNG
+              </div>
             </div>
-          </div>
         </div>
       )}
     </div>
