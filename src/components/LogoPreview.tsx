@@ -191,6 +191,21 @@ export function LogoPreview() {
     }
   }, [processFile]);
 
+  // Listen for logo file selection from upload button
+  useEffect(() => {
+    const handleLogoFileSelected = (event: CustomEvent) => {
+      const file = event.detail as File;
+      if (file) {
+        processFile(file);
+      }
+    };
+
+    window.addEventListener('logoFileSelected', handleLogoFileSelected as EventListener);
+    return () => {
+      window.removeEventListener('logoFileSelected', handleLogoFileSelected as EventListener);
+    };
+  }, [processFile]);
+
   return (
     <div className="w-full h-full border-2 border-dashed border-border bg-background/10 rounded-lg p-5">
       <div

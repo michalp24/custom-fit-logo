@@ -52,6 +52,7 @@ export interface LogoState {
   center: () => void;
   reset: () => void;
   refit: () => void;
+  clearLogo: () => void;
 }
 
 export const useLogoStore = create<LogoState>((set, get) => ({
@@ -170,4 +171,18 @@ export const useLogoStore = create<LogoState>((set, get) => ({
       console.error('Error refitting logo:', error);
     }
   },
+
+  clearLogo: () => set({
+    logoFile: null,
+    logoData: null,
+    logoType: null,
+    scale: 1,
+    offsetX: 0,
+    offsetY: 0,
+    baseScale: 1,
+    scaleFactor: 1,
+    anchor: null,
+    initialTransform: null,
+    isProcessing: false
+  }),
 }));

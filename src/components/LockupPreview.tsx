@@ -217,6 +217,39 @@ export function LockupPreview() {
       svg.appendChild(outlineRect);
     }
 
+    // Add placeholder text if no logo is loaded (2 lines, 36px font)
+    if (!logoData) {
+      const fontSize = 36;
+      const lineSpacing = fontSize * 1.2; // 1.2x line height
+      const textColor = "#ff00ff"; // Magenta color
+      
+      // First line: "Drop Logo or"
+      const placeholderText1 = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      placeholderText1.setAttribute('x', partnerAreaCenter[0].toString());
+      placeholderText1.setAttribute('y', (partnerAreaCenter[1] - lineSpacing / 2).toString());
+      placeholderText1.setAttribute('text-anchor', 'middle');
+      placeholderText1.setAttribute('dominant-baseline', 'middle');
+      placeholderText1.setAttribute('fill', textColor);
+      placeholderText1.setAttribute('font-size', fontSize.toString());
+      placeholderText1.setAttribute('font-family', 'system-ui, -apple-system, sans-serif');
+      placeholderText1.setAttribute('font-weight', '500');
+      placeholderText1.textContent = 'Drop Logo or';
+      svg.appendChild(placeholderText1);
+      
+      // Second line: "Upload from File"
+      const placeholderText2 = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      placeholderText2.setAttribute('x', partnerAreaCenter[0].toString());
+      placeholderText2.setAttribute('y', (partnerAreaCenter[1] + lineSpacing / 2).toString());
+      placeholderText2.setAttribute('text-anchor', 'middle');
+      placeholderText2.setAttribute('dominant-baseline', 'middle');
+      placeholderText2.setAttribute('fill', textColor);
+      placeholderText2.setAttribute('font-size', fontSize.toString());
+      placeholderText2.setAttribute('font-family', 'system-ui, -apple-system, sans-serif');
+      placeholderText2.setAttribute('font-weight', '500');
+      placeholderText2.textContent = 'Upload from File';
+      svg.appendChild(placeholderText2);
+    }
+
     // Add uploaded logo if exists
     if (logoData) {
       const parser = new DOMParser();
@@ -280,9 +313,7 @@ export function LockupPreview() {
       if (isValidSVG) {
         const svgText = await file.text();
         const bounds = parseSVGBounds(svgText);
-        console.log('SVG bounds:', bounds);
         const { scale, offsetX, offsetY } = fitIntoMask(bounds, partnerAreaPoints, partnerAreaCenter, 0, 0);
-        console.log('SVG fit result:', { scale, offsetX, offsetY });
         setAnchor([bounds.minX + bounds.width / 2, bounds.minY + bounds.height / 2]);
         setLogoData(svgText, 'svg');
         setTransform({ baseScale: scale, scaleFactor: 1, scale, offsetX, offsetY });
@@ -292,13 +323,9 @@ export function LockupPreview() {
         const { canvas } = await getAlphaTightBounds(img);
         const svgString = await vectorizeRasterImage(canvas);
         
-        console.log('Vectorized SVG string (first 200 chars):', svgString.substring(0, 200));
-        
         // Use SVG dimensions directly instead of parseSVGBounds
         const bounds = getSVGDimensions(svgString);
-        console.log('PNG vectorized bounds (from SVG attributes):', bounds);
         const { scale, offsetX, offsetY } = fitIntoMask(bounds, partnerAreaPoints, partnerAreaCenter, 0, 0);
-        console.log('PNG fit result:', { scale, offsetX, offsetY });
         setAnchor([bounds.minX + bounds.width / 2, bounds.minY + bounds.height / 2]);
         setLogoData(svgString, 'raster');
         setTransform({ baseScale: scale, scaleFactor: 1, scale, offsetX, offsetY });
@@ -334,6 +361,21 @@ export function LockupPreview() {
     if (file) {
       processFile(file);
     }
+  }, [processFile]);
+
+  // Listen for logo file selection from upload button
+  useEffect(() => {
+    const handleLogoFileSelected = (event: CustomEvent) => {
+      const file = event.detail as File;
+      if (file) {
+        processFile(file);
+      }
+    };
+
+    window.addEventListener('logoFileSelected', handleLogoFileSelected as EventListener);
+    return () => {
+      window.removeEventListener('logoFileSelected', handleLogoFileSelected as EventListener);
+    };
   }, [processFile]);
 
   return (

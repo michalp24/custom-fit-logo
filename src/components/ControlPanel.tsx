@@ -1,4 +1,4 @@
-import { Download, Target, Eye, EyeOff, Sun, Moon, ChevronDown } from 'lucide-react';
+import { Download, Target, Eye, EyeOff, Sun, Moon, ChevronDown, X } from 'lucide-react';
 import { useState } from 'react';
 import { useLogoStore } from '@/store/logoStore';
 import { Button } from '@/components/ui/button';
@@ -51,7 +51,8 @@ export function ControlPanel({ isLockupPage = false }: ControlPanelProps) {
     setUI,
     center,
     reset,
-    refit
+    refit,
+    clearLogo
   } = useLogoStore();
   const { toast } = useToast();
   
@@ -345,7 +346,7 @@ export function ControlPanel({ isLockupPage = false }: ControlPanelProps) {
         // PNG/JPG export - clone SVG and modify for format
         const svgClone = svgElement.cloneNode(true) as SVGSVGElement;
         
-        // For PNG, remove background rect to make transparent
+        // For PNG (transparent), remove background rect to make transparent
         if (format === 'png') {
           const bgRects = svgClone.querySelectorAll('rect[fill="#000000"], rect[fill="#ffffff"]');
           bgRects.forEach(rect => {
@@ -367,8 +368,8 @@ export function ControlPanel({ isLockupPage = false }: ControlPanelProps) {
         canvas.width = svgWidth;
         canvas.height = svgHeight;
         
-        // For JPG, add white background; PNG stays transparent
-        if (format === 'jpg') {
+        // For JPG and PNG-BG, add white background; PNG stays transparent
+        if (format === 'jpg' || format === 'png-bg') {
           ctx.fillStyle = '#ffffff';
           ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
@@ -380,18 +381,20 @@ export function ControlPanel({ isLockupPage = false }: ControlPanelProps) {
               const url = URL.createObjectURL(blob);
               const a = document.createElement('a');
               a.href = url;
-              a.download = `${filename}.${format}`;
+              const fileExtension = format === 'png-bg' ? 'png' : format;
+              a.download = `${filename}.${fileExtension}`;
               document.body.appendChild(a);
               a.click();
               document.body.removeChild(a);
               URL.revokeObjectURL(url);
               
+              const formatDisplay = format === 'png-bg' ? 'PNG (with Background)' : format.toUpperCase();
               toast({
                 title: "Export successful",
-                description: `Your logo has been exported as ${format.toUpperCase()}.`
+                description: `Your logo has been exported as ${formatDisplay}.`
               });
             }
-          }, `image/${format}`, 0.95);
+          }, `image/${format === 'png-bg' ? 'png' : format}`, 0.95);
         };
         
         // Convert SVG to data URL for canvas
@@ -419,6 +422,66 @@ export function ControlPanel({ isLockupPage = false }: ControlPanelProps) {
     });
   };
   return <div className="rounded-lg border border-border p-6 space-y-6 bg-[#0c0c0c]">
+      {/* Upload Confirmation / Upload Button */}
+      {logoFile ? (
+        <div className="bg-[#1a1a1a] border border-[#333333] rounded-lg p-4 flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="w-12 h-12 bg-[#2a2a2a] border border-[#444444] rounded-lg flex items-center justify-center overflow-hidden">
+              {logoData && (
+                <div 
+                  className="w-10 h-10 flex items-center justify-center"
+                  style={{
+                    transform: 'scale(0.8)',
+                    transformOrigin: 'center'
+                  }}
+                  dangerouslySetInnerHTML={{ __html: logoData }}
+                />
+              )}
+            </div>
+            <div>
+              <h4 className="text-sm font-medium text-white">{logoFile.name}</h4>
+              <p className="text-xs text-gray-400">
+                {logoFile.type === 'image/svg+xml' ? 'SVG' : 'PNG'} • {(logoFile.size / 1024).toFixed(1)}KB
+              </p>
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              clearLogo();
+            }}
+            className="h-8 w-8 p-0 hover:bg-[#333333] text-gray-400 hover:text-white"
+            title="Remove logo"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      ) : (
+        <div className="bg-[#1a1a1a] border border-[#333333] rounded-lg p-4 h-[80px] flex items-center justify-center">
+          <input
+            type="file"
+            accept=".svg,.png"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) {
+                // This will be handled by the preview components
+                window.dispatchEvent(new CustomEvent('logoFileSelected', { detail: file }));
+              }
+            }}
+            className="hidden"
+            id="upload-input"
+          />
+          <label
+            htmlFor="upload-input"
+            className="cursor-pointer text-center flex flex-col items-center justify-center space-y-1 hover:opacity-80 transition-opacity"
+          >
+            <div className="text-sm font-medium text-white">Upload from File</div>
+            <div className="text-xs text-gray-400">Accepted files: SVG or PNG</div>
+          </label>
+        </div>
+      )}
+
       <div className="space-y-4">
         <h3 className="text-lg font-semibold">Transform Controls</h3>
         
@@ -549,13 +612,14 @@ export function ControlPanel({ isLockupPage = false }: ControlPanelProps) {
                 <SelectContent>
                   <SelectItem value="svg">SVG (Vector)</SelectItem>
                   <SelectItem value="png">PNG (Transparent)</SelectItem>
+                  <SelectItem value="png-bg">PNG (with Background)</SelectItem>
                   <SelectItem value="jpg">JPG (White Background)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             
             <p className="text-sm text-muted-foreground">
-              File will be saved as: <strong>{fileName.trim() || (isLockupPage ? 'logo-lockup' : 'logo-in-mask')}.{exportFormat}</strong>
+              File will be saved as: <strong>{fileName.trim() || (isLockupPage ? 'logo-lockup' : 'logo-in-mask')}.{exportFormat === 'png-bg' ? 'png' : exportFormat}</strong>
             </p>
           </div>
           <DialogFooter>
