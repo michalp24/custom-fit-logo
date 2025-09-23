@@ -6,14 +6,14 @@ import { applyKaizenBridge } from './lib/kaizenBridge'
 // Initialize Kaizen theme bridge
 function initializeKaizenTheme() {
   if (document.readyState === 'complete') {
-    applyKaizenBridge('#76B900');
+    applyKaizenBridge('#74b800');
   } else {
     window.addEventListener('load', () => {
-      applyKaizenBridge('#76B900');
+      applyKaizenBridge('#74b800');
     });
     // Fallback timeout in case load event doesn't fire
     setTimeout(() => {
-      applyKaizenBridge('#76B900');
+      applyKaizenBridge('#74b800');
     }, 1000);
   }
 }

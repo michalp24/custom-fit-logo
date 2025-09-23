@@ -79,7 +79,7 @@ function hexToHsl(hex: string): string {
 }
 
 // Apply Kaizen theme bridge with custom pop color
-export function applyKaizenBridge(popColor: string = "#76B900"): void {
+export function applyKaizenBridge(popColor: string = "#74b800"): void {
   try {
     // Get computed styles from document body
     const bodyStyles = window.getComputedStyle(document.body);
@@ -120,11 +120,11 @@ export function applyKaizenBridge(popColor: string = "#76B900"): void {
     
     // Pop color for primary elements
     root.style.setProperty('--primary', popHsl);
-    root.style.setProperty('--primary-foreground', '0 0% 100%'); // White text on green
+    root.style.setProperty('--primary-foreground', '0 0% 0%'); // Black text on green
     
     // Accent using the same pop color
     root.style.setProperty('--accent', popHsl);
-    root.style.setProperty('--accent-foreground', '0 0% 100%'); // White text on green
+    root.style.setProperty('--accent-foreground', '0 0% 0%'); // Black text on green
     
     // Muted colors (lighter version of text)
     const mutedLightness = Math.min(parseInt(textHsl.split(' ')[2]) + 20, 90);
