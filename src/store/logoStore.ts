@@ -21,6 +21,7 @@ export interface LogoState {
   isProcessing: boolean;
   isDarkCanvas: boolean;
   lockupOrientation: 'vertical' | 'horizontal';
+  logoOrder: 'nvidia-left' | 'nvidia-right';
 
   // Saved state
   initialTransform: {
@@ -46,6 +47,7 @@ export interface LogoState {
     isDarkCanvas: boolean;
     isProcessing: boolean;
     lockupOrientation: 'vertical' | 'horizontal';
+    logoOrder: 'nvidia-left' | 'nvidia-right';
   }>) => void;
   setInitialTransform: (t: { scale: number; offsetX: number; offsetY: number }) => void;
   restoreInitialTransform: () => void;
@@ -74,6 +76,7 @@ export const useLogoStore = create<LogoState>((set, get) => ({
   isProcessing: false,
   isDarkCanvas: false,
   lockupOrientation: 'vertical',
+  logoOrder: 'nvidia-left',
 
   initialTransform: null,
   

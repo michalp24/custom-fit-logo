@@ -57,28 +57,55 @@ export function LockupPreview() {
     baseScale,
     scaleFactor,
     lockupOrientation,
+    logoOrder,
   } = useLogoStore();
   const { setLogoFile, setLogoData, setTransform, setUI, setInitialTransform, setAnchor } = useLogoStore();
 
-  // Calculate layout based on orientation
+  // Calculate layout based on orientation and logo order
   const isHorizontal = lockupOrientation === 'horizontal';
+  const isNvidiaLeft = logoOrder === 'nvidia-left';
   
   // Layout calculations
   let nvidiaArea, separatorConfig, partnerArea, partnerAreaCenter, partnerAreaPoints;
   
   if (isHorizontal) {
-    // Horizontal layout: NVIDIA left, separator vertical, partner right
+    // Horizontal layout: logos side by side with vertical separator
     const separatorX = CANVAS_WIDTH / 2;
     const leftAreaWidth = separatorX - PADDING * 2;
     const rightAreaXStart = separatorX + SEPARATOR_WIDTH + PADDING;
     const rightAreaWidth = CANVAS_WIDTH - rightAreaXStart - PADDING;
     
-    nvidiaArea = {
-      x: PADDING,
-      y: PADDING,
-      width: leftAreaWidth,
-      height: CANVAS_HEIGHT - PADDING * 2,
-    };
+    if (isNvidiaLeft) {
+      // NVIDIA left, partner right
+      nvidiaArea = {
+        x: PADDING,
+        y: PADDING,
+        width: leftAreaWidth,
+        height: CANVAS_HEIGHT - PADDING * 2,
+      };
+      
+      partnerArea = {
+        x: rightAreaXStart + Math.max(0, (rightAreaWidth - HORIZONTAL_LOGO_WIDTH) / 2),
+        y: PADDING + Math.max(0, (CANVAS_HEIGHT - PADDING * 2 - HORIZONTAL_LOGO_HEIGHT) / 2),
+        width: HORIZONTAL_LOGO_WIDTH,
+        height: HORIZONTAL_LOGO_HEIGHT,
+      };
+    } else {
+      // Partner left, NVIDIA right
+      partnerArea = {
+        x: PADDING + Math.max(0, (leftAreaWidth - HORIZONTAL_LOGO_WIDTH) / 2),
+        y: PADDING + Math.max(0, (CANVAS_HEIGHT - PADDING * 2 - HORIZONTAL_LOGO_HEIGHT) / 2),
+        width: HORIZONTAL_LOGO_WIDTH,
+        height: HORIZONTAL_LOGO_HEIGHT,
+      };
+      
+      nvidiaArea = {
+        x: rightAreaXStart,
+        y: PADDING,
+        width: rightAreaWidth,
+        height: CANVAS_HEIGHT - PADDING * 2,
+      };
+    }
     
     separatorConfig = {
       x: separatorX - SEPARATOR_WIDTH / 2,
@@ -87,27 +114,44 @@ export function LockupPreview() {
       height: 304,
       isHorizontal: false,
     };
-    
-    // Horizontal layout uses 692x132 logo area
-    partnerArea = {
-      x: rightAreaXStart + Math.max(0, (rightAreaWidth - HORIZONTAL_LOGO_WIDTH) / 2),
-      y: PADDING + Math.max(0, (CANVAS_HEIGHT - PADDING * 2 - HORIZONTAL_LOGO_HEIGHT) / 2),
-      width: HORIZONTAL_LOGO_WIDTH,
-      height: HORIZONTAL_LOGO_HEIGHT,
-    };
   } else {
-    // Vertical layout: Same side-by-side layout but with vertical NVIDIA logo
+    // Vertical layout: logos side by side with vertical separator
     const separatorX = CANVAS_WIDTH / 2;
     const leftAreaWidth = separatorX - PADDING * 2;
     const rightAreaXStart = separatorX + SEPARATOR_WIDTH + PADDING;
     const rightAreaWidth = CANVAS_WIDTH - rightAreaXStart - PADDING;
     
-    nvidiaArea = {
-      x: PADDING,
-      y: PADDING,
-      width: leftAreaWidth,
-      height: CANVAS_HEIGHT - PADDING * 2,
-    };
+    if (isNvidiaLeft) {
+      // NVIDIA left, partner right
+      nvidiaArea = {
+        x: PADDING,
+        y: PADDING,
+        width: leftAreaWidth,
+        height: CANVAS_HEIGHT - PADDING * 2,
+      };
+      
+      partnerArea = {
+        x: rightAreaXStart + Math.max(0, (rightAreaWidth - VERTICAL_LOGO_WIDTH) / 2),
+        y: PADDING + Math.max(0, (CANVAS_HEIGHT - PADDING * 2 - VERTICAL_LOGO_HEIGHT) / 2),
+        width: VERTICAL_LOGO_WIDTH,
+        height: VERTICAL_LOGO_HEIGHT,
+      };
+    } else {
+      // Partner left, NVIDIA right
+      partnerArea = {
+        x: PADDING + Math.max(0, (leftAreaWidth - VERTICAL_LOGO_WIDTH) / 2),
+        y: PADDING + Math.max(0, (CANVAS_HEIGHT - PADDING * 2 - VERTICAL_LOGO_HEIGHT) / 2),
+        width: VERTICAL_LOGO_WIDTH,
+        height: VERTICAL_LOGO_HEIGHT,
+      };
+      
+      nvidiaArea = {
+        x: rightAreaXStart,
+        y: PADDING,
+        width: rightAreaWidth,
+        height: CANVAS_HEIGHT - PADDING * 2,
+      };
+    }
     
     separatorConfig = {
       x: separatorX - SEPARATOR_WIDTH / 2,
@@ -116,14 +160,6 @@ export function LockupPreview() {
       height: 550,
       isHorizontal: false,
     };
-    
-    // Vertical layout uses 480x370 logo area
-    partnerArea = {
-      x: rightAreaXStart + Math.max(0, (rightAreaWidth - VERTICAL_LOGO_WIDTH) / 2),
-      y: PADDING + Math.max(0, (CANVAS_HEIGHT - PADDING * 2 - VERTICAL_LOGO_HEIGHT) / 2),
-      width: VERTICAL_LOGO_WIDTH,
-      height: VERTICAL_LOGO_HEIGHT,
-    };
   }
   
   partnerAreaCenter = [
@@ -131,6 +167,8 @@ export function LockupPreview() {
     partnerArea.y + partnerArea.height / 2,
   ];
   partnerAreaPoints = rectToPolygonPoints(partnerArea.x, partnerArea.y, partnerArea.width, partnerArea.height);
+
+  // Debug: console.log('Main layout calculation - Logo Order:', logoOrder, 'Partner Area Center:', partnerAreaCenter);
 
   useEffect(() => {
     if (!svgRef.current) return;
@@ -289,7 +327,7 @@ export function LockupPreview() {
         svg.appendChild(logoGroup);
       }
     }
-  }, [logoData, scale, offsetX, offsetY, showOutline, isDarkCanvas, baseScale, scaleFactor, lockupOrientation]);
+  }, [logoData, scale, offsetX, offsetY, showOutline, isDarkCanvas, baseScale, scaleFactor, lockupOrientation, logoOrder]);
 
   const processFile = useCallback(async (file: File) => {
     const state = useLogoStore.getState();
@@ -314,7 +352,7 @@ export function LockupPreview() {
         const svgText = await file.text();
         const bounds = parseSVGBounds(svgText);
         const { scale, offsetX, offsetY } = fitIntoMask(bounds, partnerAreaPoints, partnerAreaCenter, 0, 0);
-        setAnchor([bounds.minX + bounds.width / 2, bounds.minY + bounds.height / 2]);
+        setAnchor([bounds.minX + bounds.width / 2, bounds.minY + bounds.height / 2] as [number, number]);
         setLogoData(svgText, 'svg');
         setTransform({ baseScale: scale, scaleFactor: 1, scale, offsetX, offsetY });
         setInitialTransform({ scale, offsetX, offsetY });
@@ -326,7 +364,7 @@ export function LockupPreview() {
         // Use SVG dimensions directly instead of parseSVGBounds
         const bounds = getSVGDimensions(svgString);
         const { scale, offsetX, offsetY } = fitIntoMask(bounds, partnerAreaPoints, partnerAreaCenter, 0, 0);
-        setAnchor([bounds.minX + bounds.width / 2, bounds.minY + bounds.height / 2]);
+        setAnchor([bounds.minX + bounds.width / 2, bounds.minY + bounds.height / 2] as [number, number]);
         setLogoData(svgString, 'raster');
         setTransform({ baseScale: scale, scaleFactor: 1, scale, offsetX, offsetY });
         setInitialTransform({ scale, offsetX, offsetY });
@@ -377,6 +415,46 @@ export function LockupPreview() {
       window.removeEventListener('logoFileSelected', handleLogoFileSelected as EventListener);
     };
   }, [processFile]);
+
+  // Track previous logo order to detect changes and refit logo
+  const prevLogoOrderRef = useRef(logoOrder);
+  const prevOrientationRef = useRef(lockupOrientation);
+  
+  useEffect(() => {
+    if (logoData && (prevLogoOrderRef.current !== logoOrder || prevOrientationRef.current !== lockupOrientation)) {
+      // Debug: console.log('Logo order or orientation changed, refitting logo');
+      // Debug: console.log('Previous order:', prevLogoOrderRef.current, 'New order:', logoOrder);
+      // Debug: console.log('Previous orientation:', prevOrientationRef.current, 'New orientation:', lockupOrientation);
+      
+      // Refit logo to current partner area (use same coordinates as main rendering)
+      try {
+        let bounds;
+        if (logoData.includes('<svg')) {
+          // SVG logo
+          bounds = parseSVGBounds(logoData);
+        } else {
+          // Raster logo (vectorized)
+          bounds = getSVGDimensions(logoData);
+        }
+        
+        // fitIntoMask is already imported at the top
+        const { scale, offsetX, offsetY } = fitIntoMask(bounds, partnerAreaPoints, partnerAreaCenter, 0, 0);
+        // Debug: console.log('Refitting with new transforms:', { scale, offsetX, offsetY });
+        // Debug: console.log('Using partner area center:', partnerAreaCenter);
+        // Debug: console.log('Using partner area points:', partnerAreaPoints);
+        
+        setAnchor([bounds.minX + bounds.width / 2, bounds.minY + bounds.height / 2] as [number, number]);
+        setTransform({ baseScale: scale, scaleFactor: 1, scale, offsetX, offsetY });
+        setInitialTransform({ scale, offsetX, offsetY });
+      } catch (error) {
+        console.error('Error refitting logo after layout change:', error);
+      }
+      
+      // Update refs to current values
+      prevLogoOrderRef.current = logoOrder;
+      prevOrientationRef.current = lockupOrientation;
+    }
+  }, [logoData, logoOrder, lockupOrientation, partnerAreaPoints, partnerAreaCenter]);
 
   return (
     <div className="w-full h-full border-2 border-dashed border-border bg-background/10 rounded-lg p-5">

@@ -47,6 +47,7 @@ export function ControlPanel({ isLockupPage = false }: ControlPanelProps) {
     baseScale,
     scaleFactor,
     lockupOrientation,
+    logoOrder,
     setTransform,
     setUI,
     center,
@@ -200,8 +201,9 @@ export function ControlPanel({ isLockupPage = false }: ControlPanelProps) {
 
       // Load and embed NVIDIA logo (choose based on layout and theme)
       try {
-        const { lockupOrientation } = useLogoStore.getState();
+        const { lockupOrientation, logoOrder } = useLogoStore.getState();
         const isHorizontal = lockupOrientation === 'horizontal';
+        const isNvidiaLeft = logoOrder === 'nvidia-left';
         
         let logoPath;
         if (isHorizontal) {
@@ -218,8 +220,27 @@ export function ControlPanel({ isLockupPage = false }: ControlPanelProps) {
 
         // Create group for NVIDIA logo with proper positioning and size limit
         const nvidiaGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-        const availableWidth = leftAreaWidth - LOGO_PADDING * 2;
-        const availableHeight = leftAreaHeight - LOGO_PADDING * 2;
+        
+        // Determine NVIDIA logo area based on logo order
+        let nvidiaAreaX, nvidiaAreaY, nvidiaAreaWidth, nvidiaAreaHeight;
+        if (isNvidiaLeft) {
+          // NVIDIA on left side
+          nvidiaAreaX = leftAreaX;
+          nvidiaAreaY = leftAreaY;
+          nvidiaAreaWidth = leftAreaWidth;
+          nvidiaAreaHeight = leftAreaHeight;
+        } else {
+          // NVIDIA on right side
+          const rightAreaX = SEPARATOR_X + SEPARATOR_WIDTH + RIGHT_PADDING;
+          const rightAreaWidth = CANVAS_WIDTH - rightAreaX - RIGHT_PADDING;
+          nvidiaAreaX = rightAreaX;
+          nvidiaAreaY = leftAreaY;
+          nvidiaAreaWidth = rightAreaWidth;
+          nvidiaAreaHeight = leftAreaHeight;
+        }
+        
+        const availableWidth = nvidiaAreaWidth - LOGO_PADDING * 2;
+        const availableHeight = nvidiaAreaHeight - LOGO_PADDING * 2;
         
         // Logo dimensions and scaling based on layout
         const logoActualWidth = isHorizontal ? 694 : 480; // lockup is 694x133, regular is 480x372
@@ -244,7 +265,7 @@ export function ControlPanel({ isLockupPage = false }: ControlPanelProps) {
         const centerOffsetX = (availableWidth - scaledWidth) / 2;
         const centerOffsetY = (availableHeight - scaledHeight) / 2;
         
-        const nvidiaTransform = `translate(${leftAreaX + LOGO_PADDING + centerOffsetX}, ${leftAreaY + LOGO_PADDING + centerOffsetY}) scale(${finalScale})`;
+        const nvidiaTransform = `translate(${nvidiaAreaX + LOGO_PADDING + centerOffsetX}, ${nvidiaAreaY + LOGO_PADDING + centerOffsetY}) scale(${finalScale})`;
         nvidiaGroup.setAttribute('transform', nvidiaTransform);
 
         // Copy NVIDIA logo elements
@@ -273,27 +294,126 @@ export function ControlPanel({ isLockupPage = false }: ControlPanelProps) {
 
       // Partner logo (if exists)
       if (logoData) {
-        const { parseSVGBounds } = await import('../utils/logoProcessor');
+        const { parseSVGBounds, fitIntoMask } = await import('../utils/logoProcessor');
         const parser = new DOMParser();
         const logoDoc = parser.parseFromString(logoData, 'image/svg+xml');
         const logoSvg = logoDoc.documentElement;
-        const logoBounds = getSVGDimensions(logoData);
+        
+        // Recalculate partner area positioning to match preview (same logic as LockupPreview)
+        const { lockupOrientation, logoOrder } = useLogoStore.getState();
+        const currentIsHorizontal = lockupOrientation === 'horizontal';
+        const currentIsNvidiaLeft = logoOrder === 'nvidia-left';
+        
+        // Use same constants as preview
+        const PREVIEW_PADDING = 50;
+        const HORIZONTAL_LOGO_WIDTH = 692;
+        const HORIZONTAL_LOGO_HEIGHT = 132;
+        const VERTICAL_LOGO_WIDTH = 480;
+        const VERTICAL_LOGO_HEIGHT = 370;
+        
+        // Calculate layout with current settings (same as preview)
+        const separatorX = CANVAS_WIDTH / 2;
+        const leftAreaWidth = separatorX - PREVIEW_PADDING * 2;
+        const rightAreaXStart = separatorX + SEPARATOR_WIDTH + PREVIEW_PADDING;
+        const rightAreaWidth = CANVAS_WIDTH - rightAreaXStart - PREVIEW_PADDING;
+        
+        let partnerArea;
+        if (currentIsHorizontal) {
+          if (currentIsNvidiaLeft) {
+            // Partner on right
+            partnerArea = {
+              x: rightAreaXStart + Math.max(0, (rightAreaWidth - HORIZONTAL_LOGO_WIDTH) / 2),
+              y: PREVIEW_PADDING + Math.max(0, (CANVAS_HEIGHT - PREVIEW_PADDING * 2 - HORIZONTAL_LOGO_HEIGHT) / 2),
+              width: HORIZONTAL_LOGO_WIDTH,
+              height: HORIZONTAL_LOGO_HEIGHT,
+            };
+          } else {
+            // Partner on left
+            partnerArea = {
+              x: PREVIEW_PADDING + Math.max(0, (leftAreaWidth - HORIZONTAL_LOGO_WIDTH) / 2),
+              y: PREVIEW_PADDING + Math.max(0, (CANVAS_HEIGHT - PREVIEW_PADDING * 2 - HORIZONTAL_LOGO_HEIGHT) / 2),
+              width: HORIZONTAL_LOGO_WIDTH,
+              height: HORIZONTAL_LOGO_HEIGHT,
+            };
+          }
+        } else {
+          if (currentIsNvidiaLeft) {
+            // Partner on right
+            partnerArea = {
+              x: rightAreaXStart + Math.max(0, (rightAreaWidth - VERTICAL_LOGO_WIDTH) / 2),
+              y: PREVIEW_PADDING + Math.max(0, (CANVAS_HEIGHT - PREVIEW_PADDING * 2 - VERTICAL_LOGO_HEIGHT) / 2),
+              width: VERTICAL_LOGO_WIDTH,
+              height: VERTICAL_LOGO_HEIGHT,
+            };
+          } else {
+            // Partner on left
+            partnerArea = {
+              x: PREVIEW_PADDING + Math.max(0, (leftAreaWidth - VERTICAL_LOGO_WIDTH) / 2),
+              y: PREVIEW_PADDING + Math.max(0, (CANVAS_HEIGHT - PREVIEW_PADDING * 2 - VERTICAL_LOGO_HEIGHT) / 2),
+              width: VERTICAL_LOGO_WIDTH,
+              height: VERTICAL_LOGO_HEIGHT,
+            };
+          }
+        }
+        
+        const partnerAreaCenter = [
+          partnerArea.x + partnerArea.width / 2,
+          partnerArea.y + partnerArea.height / 2,
+        ];
+        
+        function rectToPolygonPoints(x: number, y: number, width: number, height: number): [number, number][] {
+          return [
+            [x, y],
+            [x + width, y],
+            [x + width, y + height],
+            [x, y + height],
+          ];
+        }
+        
+        const partnerAreaPoints = rectToPolygonPoints(partnerArea.x, partnerArea.y, partnerArea.width, partnerArea.height);
+        
+        // Get logo bounds and recalculate transforms to match preview
+        let logoBounds;
+        if (logoData.includes('<svg')) {
+          logoBounds = parseSVGBounds(logoData);
+        } else {
+          logoBounds = getSVGDimensions(logoData);
+        }
+        
+        const { scale: newScale, offsetX: newOffsetX, offsetY: newOffsetY } = fitIntoMask(
+          logoBounds, 
+          partnerAreaPoints, 
+          partnerAreaCenter as [number, number], 
+          0, 
+          0
+        );
+        
+        // Apply current scale factor from UI
+        const currentScaleFactor = scaleFactor || 1;
+        const finalScale = newScale * currentScaleFactor;
+        
+        // Apply any manual positioning adjustments (nudging)
+        const manualOffsetX = offsetX - (useLogoStore.getState().initialTransform?.offsetX || 0);
+        const manualOffsetY = offsetY - (useLogoStore.getState().initialTransform?.offsetY || 0);
+        const finalOffsetX = newOffsetX + manualOffsetX;
+        const finalOffsetY = newOffsetY + manualOffsetY;
+        
         const logoCenterX = logoBounds.minX + logoBounds.width / 2;
         const logoCenterY = logoBounds.minY + logoBounds.height / 2;
 
-        // Create group for partner logo with transforms (matching preview logic)
+        // Create group for partner logo with recalculated transforms
         const logoGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
         const transforms = [];
         
         // Apply transforms in same order as preview
-        if (offsetX !== 0 || offsetY !== 0) {
-          transforms.push(`translate(${offsetX}, ${offsetY})`);
+        if (finalOffsetX !== 0 || finalOffsetY !== 0) {
+          transforms.push(`translate(${finalOffsetX}, ${finalOffsetY})`);
         }
         
         // Scale around logo's own center
-        if (scale !== 1) {
+        if (finalScale !== 1) {
           transforms.push(`translate(${logoCenterX}, ${logoCenterY})`);
-          transforms.push(`scale(${scale})`);
+          transforms.push(`scale(${finalScale})`);
           transforms.push(`translate(${-logoCenterX}, ${-logoCenterY})`);
         }
         
@@ -378,19 +498,19 @@ export function ControlPanel({ isLockupPage = false }: ControlPanelProps) {
           ctx.drawImage(img, 0, 0);
           canvas.toBlob((blob) => {
             if (blob) {
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.href = url;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
               const fileExtension = format === 'png-bg' ? 'png' : format;
               a.download = `${filename}.${fileExtension}`;
-              document.body.appendChild(a);
-              a.click();
-              document.body.removeChild(a);
-              URL.revokeObjectURL(url);
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
               
               const formatDisplay = format === 'png-bg' ? 'PNG (with Background)' : format.toUpperCase();
-              toast({
-                title: "Export successful",
+      toast({
+        title: "Export successful",
                 description: `Your logo has been exported as ${formatDisplay}.`
               });
             }
@@ -499,6 +619,31 @@ export function ControlPanel({ isLockupPage = false }: ControlPanelProps) {
           />
         </div>
 
+        {/* Logo Order Toggle (only for lockup page) */}
+        {isLockupPage && (
+        <div className="space-y-2">
+            <Label>Logo Order</Label>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                variant={logoOrder === 'nvidia-left' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setUI({ logoOrder: 'nvidia-left' })}
+                className="text-xs"
+              >
+                NVIDIA Left
+              </Button>
+              <Button
+                variant={logoOrder === 'nvidia-right' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setUI({ logoOrder: 'nvidia-right' })}
+                className="text-xs"
+              >
+                NVIDIA Right
+              </Button>
+            </div>
+        </div>
+        )}
+
         {/* Position Controls */}
         <div className="space-y-2">
           <Label>Position (X: {offsetX.toFixed(0)}, Y: {offsetY.toFixed(0)})</Label>
@@ -535,12 +680,12 @@ export function ControlPanel({ isLockupPage = false }: ControlPanelProps) {
         {isLockupPage ? (
           <div className="grid grid-cols-2 gap-3">
             <Button variant="ghost" size="sm" onClick={() => setUI({
-            showOutline: !showOutline
+          showOutline: !showOutline
           })} className="w-full justify-center text-center nv-button--kind-secondary">
-              {showOutline ? <Eye className="mr-2 h-4 w-4" /> : <EyeOff className="mr-2 h-4 w-4" />}
-              Show Outline
-            </Button>
-            
+            {showOutline ? <Eye className="mr-2 h-4 w-4" /> : <EyeOff className="mr-2 h-4 w-4" />}
+            Show Outline
+          </Button>
+          
             <Button
               variant="ghost"
               size="sm"
@@ -549,17 +694,17 @@ export function ControlPanel({ isLockupPage = false }: ControlPanelProps) {
             >
               {isDarkCanvas ? <Sun className="mr-2 h-4 w-4" /> : <Moon className="mr-2 h-4 w-4" />}
               {isDarkCanvas ? 'Light Theme' : 'Dark Theme'}
-            </Button>
-          </div>
+          </Button>
+        </div>
         ) : (
-          <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-3">
             <Button variant="ghost" size="sm" onClick={() => setUI({
             showOutline: !showOutline
           })} className="w-full justify-center text-center nv-button--kind-secondary">
               {showOutline ? <Eye className="mr-2 h-4 w-4" /> : <EyeOff className="mr-2 h-4 w-4" />}
               Show Outline
-            </Button>
-            
+          </Button>
+          
             <Button
               variant="ghost"
               size="sm"
