@@ -189,7 +189,7 @@ export default function LogoExporter() {
               <div className="flex flex-col gap-3">
                 <h3 className="text-sm font-semibold text-white mb-2">Resources</h3>
                 <a
-                  href="https://brand.nvidia.com/d/UKVz9aA18m6Q"
+                  href="https://design.nvidia.com/design-system"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-sm text-[#898989] hover:text-white transition-colors"
@@ -197,7 +197,7 @@ export default function LogoExporter() {
                   NVIDIA Web Design System
                 </a>
                 <a
-                  href="https://brand.nvidia.com/d/9M9wySQgZT2X/n-a?#/nvidia-logo/logo-quick-start-guideline/co-branding-layout"
+                  href="https://design.nvidia.com/resources/logo/logo-quick-start-guideline#co-branding-layout"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-sm text-[#898989] hover:text-white transition-colors"
