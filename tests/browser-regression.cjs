@@ -106,6 +106,36 @@ const { chromium } = require(process.env.PLAYWRIGHT_PATH || 'playwright');
     store().setUI({isDarkCanvas:false});
     store().setMode(false); store().refit();
     check(contained(), 'Single-logo refit works without require');
+    const { TEMPLATE_PATH } = await import('/src/utils/templateFit.ts');
+    const templatePath = new Path2D(TEMPLATE_PATH);
+    for (const [name, artwork] of [
+      ['wide', '<rect width="900" height="200"/>'],
+      ['tall', '<rect width="120" height="900"/>'],
+      ['square', '<rect width="400" height="400"/>'],
+      ['stroke', '<rect x="20" y="20" width="80" height="80" fill="none" stroke="black" stroke-width="12"/>'],
+    ]) {
+      await store().loadLogo(new File([`<svg xmlns="http://www.w3.org/2000/svg">${artwork}</svg>`], `${name}.svg`, {type:'image/svg+xml'}));
+      const initialScale = store().scale;
+      store().setTransform({scaleFactor:2.5});
+      check(store().scale <= initialScale, `Template ${name}: scaling stops at boundary`);
+      for (const [dx,dy] of [[0,0],[2000,0],[-4000,0],[0,-3000],[0,6000],[2000,-3000]]) {
+        const beforeNudge = store().scale;
+        store().setTransform({offsetX:store().offsetX+dx,offsetY:store().offsetY+dy});
+        check(Math.abs(store().scale-beforeNudge)<1e-8, `Template ${name}: boundary nudge preserves size (${dx},${dy})`);
+        const rendered = await pixels(await exportLogo(store(), 'png'));
+        check(rendered.c.width===1250 && rendered.c.height===703, 'Template uses supplied canvas dimensions');
+        const data=rendered.ctx.getImageData(0,0,1250,703).data;
+        let outside=0,visible=0;
+        for(let y=0;y<703;y++) for(let x=0;x<1250;x++) {
+          if(data[(y*1250+x)*4+3]<128) continue;
+          visible++;
+          if(!rendered.ctx.isPointInPath(templatePath,x+0.5,y+0.5)) outside++;
+        }
+        check(visible>100 && outside===0, `Template ${name}: whole exported artwork inside supplied shape (${dx},${dy})`);
+      }
+      const exportedDoc = new DOMParser().parseFromString(await (await exportLogo(store(),'svg')).text(),'image/svg+xml');
+      check(!exportedDoc.querySelector('[data-main-guide], clipPath'), 'Template export fits artwork without guide or clipping');
+    }
     // A tiny valid SVG must scale above the old arbitrary 10x ceiling.
     await store().loadLogo(new File(['<svg xmlns="http://www.w3.org/2000/svg"><rect width="1" height="1"/></svg>'], 'tiny.svg', {type:'image/svg+xml'}));
     check(store().scale > 10 && contained(), 'Tiny SVG fits without an arbitrary scale ceiling');

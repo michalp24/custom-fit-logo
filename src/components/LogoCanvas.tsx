@@ -48,7 +48,7 @@ export function LogoCanvas({ partner }: { partner: boolean }) {
     window.addEventListener('logoFileSelected', selected);
     return () => window.removeEventListener('logoFileSelected', selected);
   }, [processFile]);
-  return <div className="w-full aspect-[16/9] border-2 border-dashed border-border rounded-lg p-5 relative"
+  return <div style={{ aspectRatio: partner ? '1920 / 1080' : '1250 / 703' }} className="w-full border-2 border-dashed border-border rounded-lg p-5 relative"
     onDragOver={e => e.preventDefault()}
     onDrop={e => { e.preventDefault(); const file = e.dataTransfer.files[0]; if (file) void processFile(file); }}>
     <div ref={host} className="w-full h-full" tabIndex={0} role="region" aria-label="Logo positioning canvas"

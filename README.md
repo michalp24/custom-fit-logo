@@ -72,6 +72,15 @@ To connect a domain, navigate to Project > Settings > Domains and click Connect 
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
 
+## Logo Template boundary
+
+The Logo Template page uses the supplied `src/assets/logo-template.svg` silhouette
+and its 1250 × 703 canvas. Initial fitting keeps the complete artwork bounds inside
+the shape, including conservative allowance for SVG strokes. Scale is limited to
+the fitted size, and nudges stop at the boundary without cropping the artwork.
+The guide does not appear in exports. Partner Lockup keeps its separate rectangular
+guides, free positioning, and 250% scaling.
+
 ## Logo body fitting
 
 Partner lockups use the supplied 1920 × 1080 guides: 480 × 370 for vertical

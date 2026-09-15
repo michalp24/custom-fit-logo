@@ -1,3 +1,4 @@
+import { TEMPLATE_PATH } from './templateFit';
 import type { LogoState } from '@/store/logoStore';
 import { getLayout, type Rect } from './layout';
 const NS = 'http://www.w3.org/2000/svg';
@@ -27,7 +28,9 @@ export function renderLogo(state: LogoState, guides = false): SVGSVGElement {
   if (guides) {
     const { body: b, extension: e } = layout;
     if (e) for (const box of [{ x: b.x, y: b.y - e, width: b.width, height: e }, { x: b.x, y: b.y + b.height, width: b.width, height: e }, { x: b.x - e, y: b.y, width: e, height: b.height }, { x: b.x + b.width, y: b.y, width: e, height: b.height }]) svg.appendChild(rect(box, { fill: 'none', stroke: '#ff00ff', 'stroke-width': 2, opacity: 0.5 }));
-    svg.appendChild(rect(b, { fill: 'none', stroke: '#ff00ff', 'stroke-width': 2, 'data-main-guide': 'true' }));
+    svg.appendChild(state.isPartner
+      ? rect(b, { fill: 'none', stroke: '#ff00ff', 'stroke-width': 2, 'data-main-guide': 'true' })
+      : element('path', { d: TEMPLATE_PATH, fill: 'none', stroke: '#ff00ff', 'stroke-width': 2, 'data-main-guide': 'true' }));
   }
   return svg;
 }

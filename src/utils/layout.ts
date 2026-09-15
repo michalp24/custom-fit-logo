@@ -1,6 +1,7 @@
+import { TEMPLATE_WIDTH, TEMPLATE_HEIGHT } from './templateFit';
 export interface Rect { x: number; y: number; width: number; height: number }
 export function getLayout(partner: boolean, orientation: string, order: string) {
-  if (!partner) return { width: 1250, height: 700, body: { x: 150, y: 150, width: 950, height: 400 }, extension: 0, nvidia: null, separator: null };
+  if (!partner) return { width: TEMPLATE_WIDTH, height: TEMPLATE_HEIGHT, body: { x: 398, y: 124, width: 454, height: 455 }, extension: 0, nvidia: null, separator: null };
   const horizontal = orientation === 'horizontal';
   const partnerCenter = order === 'nvidia-left' ? 1442 : 478;
   const width = horizontal ? 692 : 480;

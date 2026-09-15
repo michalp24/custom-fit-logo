@@ -72,8 +72,24 @@ export function parseSVGBounds(svgString: string): SVGBounds {
   document.body.appendChild(host);
   try {
     const box = group.getBBox();
-    if (![box.x, box.y, box.width, box.height].every(Number.isFinite) || box.width <= 0 || box.height <= 0) throw new Error('SVG contains no measurable artwork.');
-    return { minX: box.x, minY: box.y, maxX: box.x + box.width, maxY: box.y + box.height, width: box.width, height: box.height };
+    // getBBox excludes strokes in some browsers. Reserve space for the painted
+    // outline as well as geometry, including transformed strokes and miter joins.
+    let strokeX = 0, strokeY = 0;
+    for (const node of group.querySelectorAll('path, rect, circle, ellipse, line, polyline, polygon, text, use')) {
+      const style = getComputedStyle(node);
+      if (style.stroke === 'none' || style.display === 'none' || style.visibility === 'hidden' || Number(style.strokeOpacity) === 0) continue;
+      const width = parseFloat(style.strokeWidth);
+      const matrix = (node as SVGGraphicsElement).getCTM();
+      if (!matrix || !Number.isFinite(width)) continue;
+      const join = style.strokeLinejoin === 'miter' ? Math.max(1, Number(style.strokeMiterlimit) || 4) : Math.SQRT2;
+      const radius = width * join / 2;
+      strokeX = Math.max(strokeX, radius * (Math.abs(matrix.a) + Math.abs(matrix.c)));
+      strokeY = Math.max(strokeY, radius * (Math.abs(matrix.b) + Math.abs(matrix.d)));
+    }
+    const x = box.x - strokeX, y = box.y - strokeY;
+    const width = box.width + 2 * strokeX, height = box.height + 2 * strokeY;
+    if (![x, y, width, height].every(Number.isFinite) || width <= 0 || height <= 0) throw new Error('SVG contains no measurable artwork.');
+    return { minX: x, minY: y, maxX: x + width, maxY: y + height, width, height };
   } finally { host.remove(); }
 }
 

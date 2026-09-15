@@ -174,13 +174,15 @@ export function ControlPanel({ isLockupPage = false }: ControlPanelProps) {
           <Slider
             id="scale"
             min={1}
-            max={250}
+            max={isLockupPage ? 250 : 100}
             step={1}
             value={[Math.round(scaleFactor * 100)]}
             onValueChange={([value]) => setTransform({ scaleFactor: value / 100 })}
             className="w-full"
           />
         </div>
+
+        {!isLockupPage && <p className="text-xs text-muted-foreground">The entire logo stays inside the pink shape. Size and position stop at its edges.</p>}
 
         {/* Logo Order Toggle (only for lockup page) */}
         {isLockupPage && (
