@@ -1,7 +1,7 @@
 import maskData from '@/assets/mask.json';
 
-export const MASK_OUTLINE_PATH: string = (maskData as any).outlinePath as string;
-export const MASK_FILL_PATH: string = (maskData as any).fillPath as string;
+export const MASK_OUTLINE_PATH: string = maskData.outlinePath;
+export const MASK_FILL_PATH: string = maskData.fillPath;
 export const MASK_CENTER: [number, number] = maskData.center as [number, number];
 
 // Convert path to dense polygon points for fitting calculations

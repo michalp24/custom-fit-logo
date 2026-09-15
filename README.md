@@ -71,3 +71,32 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+
+## Logo body fitting
+
+Partner lockups use the supplied 1920 × 1080 guides: 480 × 370 for vertical
+NVIDIA artwork and 692 × 132 for horizontal artwork. Both logos remain side by side.
+
+On upload, the entire partner logo is fitted to the main rectangle at 100%.
+Use the scale slider (1–250%) and position controls to adjust it visually. For
+Amazon, enlarge the logo until the lettering fits the main rectangle, then nudge
+it so the smile extends below. The pink lines are guides, not clipping boundaries;
+manual scaling and nudging are not restricted to the rectangle. No artwork is
+cropped to the guide. Exports preserve the adjusted scale and position.
+
+Preview and export share the same renderer. Guides are never exported. Transparent
+PNG removes only the canvas background. JPG and PNG with background use the selected
+canvas theme. Raster uploads keep their original pixels inside SVG exports; they
+are not automatically converted into vector paths. JPG backgrounds are not removed.
+
+## Verification
+
+- `npm run typecheck`
+- `npm run lint` (legacy backup components and shared UI components still have warnings)
+- `npm run build`
+- `npm run test:browser` starts a fresh local Vite server and runs Chrome regressions.
+  Requires Playwright and Google Chrome. If Playwright is provided by an external
+  runtime, set `PLAYWRIGHT_PATH` to its package directory. `BROWSER_CHANNEL` can
+  select another installed Playwright browser channel; `TEST_URL` can target an
+  existing development server instead (restart it after source changes to avoid
+  hot-reload module instances in these tests).

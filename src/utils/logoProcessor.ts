@@ -10,64 +10,71 @@ export interface SVGBounds {
   height: number;
 }
 
-export function parseSVGBounds(svgString: string): SVGBounds {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(svgString, 'image/svg+xml');
-  const svg = doc.documentElement as unknown as SVGSVGElement;
-  
-  // Get all visible elements
-  const elements = svg.querySelectorAll('path, rect, circle, ellipse, line, polyline, polygon');
-  
-  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-  let hasContent = false;
-  
-  elements.forEach(element => {
-    const svgElement = element as SVGElement;
-    
-    // Skip hidden elements
-    const computedStyle = window.getComputedStyle ? window.getComputedStyle(svgElement) : null;
-    const style = computedStyle || (svgElement as any).style || {};
-    if (style.display === 'none' || style.opacity === '0') return;
-    
-    try {
-      const bbox = (svgElement as any).getBBox ? (svgElement as any).getBBox() : svgElement.getBoundingClientRect();
-      if (bbox.width > 0 && bbox.height > 0) {
-        minX = Math.min(minX, bbox.x);
-        maxX = Math.max(maxX, bbox.x + bbox.width);
-        minY = Math.min(minY, bbox.y);
-        maxY = Math.max(maxY, bbox.y + bbox.height);
-        hasContent = true;
-      }
-    } catch (e) {
-      // Ignore elements that can't provide bbox
+// Normalize the root into a group so inherited paint and transforms survive embedding.
+export function normalizeSVG(source: string): string {
+  const doc = new DOMParser().parseFromString(source, 'image/svg+xml');
+  const root = doc.documentElement;
+  if (doc.querySelector('parsererror') || root.localName !== 'svg') throw new Error('Invalid SVG file.');
+  root.querySelectorAll('script, foreignObject, iframe, animate, animateTransform, set').forEach(el => el.remove());
+  for (const el of [root, ...root.querySelectorAll('*')]) {
+    for (const attr of [...el.attributes]) {
+      if (/^on/i.test(attr.name) || ((attr.localName === 'href') && !attr.value.startsWith('#') && !/^data:image\/(png|jpeg|webp);base64,/i.test(attr.value))) el.removeAttributeNode(attr);
     }
-  });
-  
-  if (!hasContent) {
-    // Fallback to viewBox or default
-    const viewBox = (svg as any).viewBox?.baseVal;
-    if (viewBox && viewBox.width > 0 && viewBox.height > 0) {
-      return {
-        minX: viewBox.x,
-        maxX: viewBox.x + viewBox.width,
-        minY: viewBox.y,
-        maxY: viewBox.y + viewBox.height,
-        width: viewBox.width,
-        height: viewBox.height
-      };
-    }
-    
-    return { minX: 0, maxX: 100, minY: 0, maxY: 100, width: 100, height: 100 };
   }
-  
-  return {
-    minX,
-    maxX,
-    minY,
-    maxY,
-    width: maxX - minX,
-    height: maxY - minY
-  };
+  // Resolve SVG styles in an isolated tree, then inline them. Uploaded selectors
+  // must not recolor the canvas, guides, or other logos in the exported document.
+  const externalResources = (value: string) => /@import/i.test(value) || [...value.matchAll(/url\(([^)]*)\)/gi)].some(match => !match[1].trim().replace(/^["']|["']$/g, '').startsWith('#'));
+  for (const el of [root, ...root.querySelectorAll('*')]) {
+    for (const attr of [...el.attributes]) {
+      if (externalResources(attr.value)) throw new Error('Please embed external SVG resources before uploading.');
+    }
+    if (el.localName === 'style' && externalResources(el.textContent || '')) throw new Error('Please embed external SVG resources before uploading.');
+  }
+  const container = document.createElement('div');
+  container.style.cssText = 'position:fixed;left:-100000px;top:0;pointer-events:none';
+  const shadow = container.attachShadow({ mode: 'closed' });
+  const mounted = document.importNode(root, true);
+  shadow.appendChild(mounted);
+  document.body.appendChild(container);
+  const properties = ['stop-color', 'stop-opacity', 'flood-color', 'flood-opacity', 'lighting-color', 'fill', 'fill-opacity', 'fill-rule', 'stroke', 'stroke-width', 'stroke-opacity', 'stroke-linecap', 'stroke-linejoin', 'stroke-miterlimit', 'stroke-dasharray', 'stroke-dashoffset', 'opacity', 'display', 'visibility', 'color', 'clip-path', 'clip-rule', 'mask', 'filter', 'marker-start', 'marker-mid', 'marker-end', 'font-family', 'font-size', 'font-weight', 'font-style', 'text-anchor', 'dominant-baseline', 'paint-order', 'vector-effect', 'transform', 'transform-origin'];
+  try {
+    const originals = [root, ...root.querySelectorAll('*')];
+    const copies = [mounted, ...mounted.querySelectorAll('*')];
+    originals.forEach((el, index) => {
+      if (['style', 'title', 'desc'].includes(el.localName)) return;
+      const computed = getComputedStyle(copies[index]);
+      const style = properties.map(property => {
+        const value = computed.getPropertyValue(property).replace(/url\(["']?[^)"']*#([^"')]+)["']?\)/g, 'url(#$1)');
+        return `${property}:${value}`;
+      }).join(';');
+      el.setAttribute('style', style);
+    });
+  } finally { container.remove(); }
+  root.querySelectorAll('style').forEach(el => el.remove());
+  const group = doc.createElementNS('http://www.w3.org/2000/svg', 'g');
+  for (const name of ['fill', 'stroke', 'stroke-width', 'fill-rule', 'clip-rule', 'opacity', 'transform', 'style', 'class', 'id', 'color']) {
+    if (root.hasAttribute(name)) group.setAttribute(name, root.getAttribute(name)!);
+  }
+  while (root.firstChild) group.appendChild(root.firstChild);
+  for (const name of ['fill', 'stroke', 'stroke-width', 'fill-rule', 'clip-rule', 'opacity', 'transform', 'style', 'class', 'id', 'color']) root.removeAttribute(name);
+  root.appendChild(group);
+  return new XMLSerializer().serializeToString(root);
+}
+
+export function parseSVGBounds(svgString: string): SVGBounds {
+  const doc = new DOMParser().parseFromString(svgString, 'image/svg+xml');
+  if (doc.querySelector('parsererror') || doc.documentElement.localName !== 'svg') throw new Error('Invalid SVG file.');
+  const host = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  host.style.cssText = 'position:fixed;left:-100000px;top:0;visibility:hidden;pointer-events:none';
+  const group = document.createElementNS(host.namespaceURI, 'g') as SVGGElement;
+  for (const child of [...doc.documentElement.children]) group.appendChild(document.importNode(child, true));
+  host.appendChild(group);
+  document.body.appendChild(host);
+  try {
+    const box = group.getBBox();
+    if (![box.x, box.y, box.width, box.height].every(Number.isFinite) || box.width <= 0 || box.height <= 0) throw new Error('SVG contains no measurable artwork.');
+    return { minX: box.x, minY: box.y, maxX: box.x + box.width, maxY: box.y + box.height, width: box.width, height: box.height };
+  } finally { host.remove(); }
 }
 
 export function getAlphaTightBounds(imageElement: HTMLImageElement): Promise<{ canvas: HTMLCanvasElement, bounds: SVGBounds }> {
@@ -107,14 +114,10 @@ export function getAlphaTightBounds(imageElement: HTMLImageElement): Promise<{ c
       }
       
       if (!hasAlpha) {
-        // No transparent pixels, use full image
-        resolve({
-          canvas,
-          bounds: { minX: 0, maxX: canvas.width, minY: 0, maxY: canvas.height, width: canvas.width, height: canvas.height }
-        });
+        reject(new Error('This image is fully transparent. Please choose a visible logo.'));
         return;
       }
-      
+
       // Create cropped canvas
       const croppedCanvas = document.createElement('canvas');
       const croppedCtx = croppedCanvas.getContext('2d');
@@ -142,57 +145,22 @@ export function getAlphaTightBounds(imageElement: HTMLImageElement): Promise<{ c
   });
 }
 
-export function vectorizeRasterImage(canvas: HTMLCanvasElement): Promise<string> {
-  return new Promise((resolve, reject) => {
-    // Configure ImageTracer for logo-friendly settings
-    const options = {
-      pathomit: 1,
-      ltres: 0.1,
-      qtres: 0.1,
-      scale: 1,
-      strokewidth: 0,
-      blurradius: 0,
-      colorsampling: 1,
-      numberofcolors: 16,
-      mincolorratio: 0.02,
-      colorquantcycles: 3
-    };
-    
-    try {
-      const dataURL = canvas.toDataURL('image/png');
-      
-      // ImageTracer is a class constructor, so we need to use 'new'
-      const tracer = new (ImageTracer as any).ImageTracer();
-      
-      // Try different methods to get SVG
-      if (typeof tracer.imageToSVG === 'function') {
-        const svgString = tracer.imageToSVG(dataURL, options);
-        resolve(svgString);
-      } else if (typeof (ImageTracer as any).getSvgString === 'function') {
-        // Process image first, then get SVG string
-        const traceData = tracer.trace ? tracer.trace(dataURL, options) : tracer.process ? tracer.process(dataURL, options) : null;
-        if (traceData) {
-          const svgString = (ImageTracer as any).getSvgString(traceData, options);
-          resolve(svgString);
-        } else {
-          reject(new Error('Could not process image data'));
-        }
-      } else {
-        reject(new Error('No compatible SVG generation method found'));
-      }
-      
-    } catch (error) {
-      reject(error);
-    }
+export async function vectorizeRasterImage(canvas: HTMLCanvasElement): Promise<string> {
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Could not read image.');
+  return ImageTracer.imageTracer.imageDataToSVG(ctx.getImageData(0, 0, canvas.width, canvas.height), {
+    pathomit: 1, ltres: 0.1, qtres: 0.1, scale: 1, strokewidth: 0,
+    blurradius: 0, colorsampling: 1, numberofcolors: 16, mincolorratio: 0.02, colorquantcycles: 3
   });
 }
 
 export function loadImageFromFile(file: File): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = reject;
-    img.src = URL.createObjectURL(file);
+    const url = URL.createObjectURL(file);
+    img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Could not decode image.')); };
+    img.src = url;
   });
 }
 
@@ -315,11 +283,11 @@ export function fitIntoMask(
   const [centerX, centerY] = center;
   
   // Start with conservative bounds and grow until we find the limits
-  let lowerBound = 0.01;
+  let lowerBound = 0;
   let upperBound = 0.1;
   
   // Find upper bound by growing until containment fails
-  while (upperBound < 10) {
+  while (upperBound < 1e9) {
     const perimeterPoints = sampleLogoPerimeter(logoBounds, upperBound);
     const logoCenterX = logoBounds.minX + logoBounds.width / 2;
     const logoCenterY = logoBounds.minY + logoBounds.height / 2;

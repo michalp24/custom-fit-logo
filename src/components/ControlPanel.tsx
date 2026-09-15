@@ -1,3 +1,4 @@
+import { exportLogo } from '@/utils/renderLogo';
 import { Download, Target, Eye, EyeOff, Sun, Moon, ChevronDown, X } from 'lucide-react';
 import { useState } from 'react';
 import { useLogoStore } from '@/store/logoStore';
@@ -13,28 +14,9 @@ import { MASK_FILL_PATH, MASK_CENTER } from '@/utils/mask';
 interface ControlPanelProps {
   isLockupPage?: boolean;
 }
-// Helper function to get SVG dimensions (same as in preview components)
-function getSVGDimensions(svgString: string) {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(svgString, 'image/svg+xml');
-  const svg = doc.documentElement;
-  
-  const width = parseInt(svg.getAttribute('width') || '0');
-  const height = parseInt(svg.getAttribute('height') || '0');
-  
-  return {
-    minX: 0,
-    maxX: width,
-    minY: 0,
-    maxY: height,
-    width: width,
-    height: height
-  };
-}
-
-
 export function ControlPanel({ isLockupPage = false }: ControlPanelProps) {
   const {
+    isProcessing,
     logoData,
     logoFile,
     scale,
@@ -97,448 +79,34 @@ export function ControlPanel({ isLockupPage = false }: ControlPanelProps) {
     setShowExportModal(true);
   };
   
-  const handleConfirmExport = () => {
-    const finalFileName = fileName.trim() || (isLockupPage ? 'logo-lockup' : 'logo-in-mask');
-    setShowExportModal(false);
-    
-    if (isLockupPage) {
-      exportLockupCanvas(finalFileName, exportFormat);
-    } else {
-      exportSingleLogo(finalFileName, exportFormat);
-    }
-  };
-
-  const exportSingleLogo = async (filename: string, format: string = 'svg') => {
+  const [isExporting, setIsExporting] = useState(false);
+  const handleConfirmExport = async () => {
+    if (isExporting) return;
+    setIsExporting(true);
     try {
-      // Create clean SVG with only the transformed logo
-      const parser = new DOMParser();
-      const logoDoc = parser.parseFromString(logoData, 'image/svg+xml');
-      const logoSvg = logoDoc.documentElement;
-
-      // Create new SVG for export
-      const exportSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-      exportSvg.setAttribute('viewBox', '0 0 1250 700');
-      exportSvg.setAttribute('width', '1250');
-      exportSvg.setAttribute('height', '700');
-      exportSvg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-
-      // Create group with transforms (matching preview logic)
-      const { parseSVGBounds } = await import('../utils/logoProcessor');
-      const logoBounds = getSVGDimensions(logoData);
-      const logoCenterX = logoBounds.minX + logoBounds.width / 2;
-      const logoCenterY = logoBounds.minY + logoBounds.height / 2;
-      
-      const logoGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-      const transforms = [];
-      
-      // Apply transforms in same order as preview
-      if (offsetX !== 0 || offsetY !== 0) {
-        transforms.push(`translate(${offsetX}, ${offsetY})`);
-      }
-      
-      // Scale around logo's own center
-      if (scale !== 1) {
-        transforms.push(`translate(${logoCenterX}, ${logoCenterY})`);
-        transforms.push(`scale(${scale})`);
-        transforms.push(`translate(${-logoCenterX}, ${-logoCenterY})`);
-      }
-
-      if (transforms.length > 0) {
-        logoGroup.setAttribute('transform', transforms.join(' '));
-      }
-
-      // Copy logo elements
-      const logoElements = logoSvg.children;
-      for (let i = 0; i < logoElements.length; i++) {
-        const element = logoElements[i].cloneNode(true) as Element;
-        logoGroup.appendChild(element);
-      }
-      exportSvg.appendChild(logoGroup);
-
-      // Create and download the file
-      await downloadSvgAsFormat(exportSvg, filename, format);
-    } catch (error) {
-      console.error('Export error:', error);
-      toast({
-        title: "Export failed",
-        description: "There was an error exporting your logo.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const exportLockupCanvas = async (filename: string, format: string = 'svg') => {
-    try {
-      // Create full lockup canvas SVG
-      const CANVAS_WIDTH = 1920;
-      const CANVAS_HEIGHT = 1080;
-      const SEPARATOR_X = CANVAS_WIDTH / 2;
-      const SEPARATOR_WIDTH = 8;
-      const RIGHT_PADDING = 120;
-      const TOP_BOTTOM_PADDING = 160;
-
-      const exportSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-      exportSvg.setAttribute('viewBox', `0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}`);
-      exportSvg.setAttribute('width', String(CANVAS_WIDTH));
-      exportSvg.setAttribute('height', String(CANVAS_HEIGHT));
-      exportSvg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-
-      // Background
-      const bgRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-      bgRect.setAttribute('x', '0');
-      bgRect.setAttribute('y', '0');
-      bgRect.setAttribute('width', String(CANVAS_WIDTH));
-      bgRect.setAttribute('height', String(CANVAS_HEIGHT));
-      bgRect.setAttribute('fill', isDarkCanvas ? '#000000' : '#ffffff');
-      exportSvg.appendChild(bgRect);
-
-      // Left area for NVIDIA logo
-      const leftAreaX = RIGHT_PADDING;
-      const leftAreaY = TOP_BOTTOM_PADDING;
-      const leftAreaWidth = SEPARATOR_X - RIGHT_PADDING * 2;
-      const leftAreaHeight = CANVAS_HEIGHT - TOP_BOTTOM_PADDING * 2;
-      const LOGO_PADDING = 120;
-
-      // Load and embed NVIDIA logo (choose based on layout and theme)
-      try {
-        const { lockupOrientation, logoOrder } = useLogoStore.getState();
-        const isHorizontal = lockupOrientation === 'horizontal';
-        const isNvidiaLeft = logoOrder === 'nvidia-left';
-        
-        let logoPath;
-        if (isHorizontal) {
-          logoPath = isDarkCanvas ? '/nvidia-logo-lcokup-dark.svg' : '/nvidia-logo-lockup.svg';
-        } else {
-          logoPath = isDarkCanvas ? '/nvidia-logo-dark.svg' : '/nvidia-logo.svg';
-        }
-        
-        const response = await fetch(logoPath);
-        const logoSvgText = await response.text();
-        const parser = new DOMParser();
-        const logoDoc = parser.parseFromString(logoSvgText, 'image/svg+xml');
-        const logoSvg = logoDoc.documentElement;
-
-        // Create group for NVIDIA logo with proper positioning and size limit
-        const nvidiaGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-        
-        // Determine NVIDIA logo area based on logo order
-        let nvidiaAreaX, nvidiaAreaY, nvidiaAreaWidth, nvidiaAreaHeight;
-        if (isNvidiaLeft) {
-          // NVIDIA on left side
-          nvidiaAreaX = leftAreaX;
-          nvidiaAreaY = leftAreaY;
-          nvidiaAreaWidth = leftAreaWidth;
-          nvidiaAreaHeight = leftAreaHeight;
-        } else {
-          // NVIDIA on right side
-          const rightAreaX = SEPARATOR_X + SEPARATOR_WIDTH + RIGHT_PADDING;
-          const rightAreaWidth = CANVAS_WIDTH - rightAreaX - RIGHT_PADDING;
-          nvidiaAreaX = rightAreaX;
-          nvidiaAreaY = leftAreaY;
-          nvidiaAreaWidth = rightAreaWidth;
-          nvidiaAreaHeight = leftAreaHeight;
-        }
-        
-        const availableWidth = nvidiaAreaWidth - LOGO_PADDING * 2;
-        const availableHeight = nvidiaAreaHeight - LOGO_PADDING * 2;
-        
-        // Logo dimensions and scaling based on layout
-        const logoActualWidth = isHorizontal ? 694 : 480; // lockup is 694x133, regular is 480x372
-        const logoActualHeight = isHorizontal ? 133 : 372;
-        
-        // For horizontal layout, target 692px width; for vertical, use 478px max
-        let finalScale;
-        if (isHorizontal) {
-          // Target 692px width for horizontal lockup logo
-          finalScale = 692 / logoActualWidth;
-        } else {
-          // Use original logic for vertical layout with 478px max
-          const maxAllowedWidth = Math.min(478, availableWidth);
-          const scaleX = maxAllowedWidth / logoActualWidth;
-          const scaleY = availableHeight / logoActualHeight;
-          finalScale = Math.min(scaleX, scaleY);
-        }
-        
-        // Center the logo within the available space
-        const scaledWidth = logoActualWidth * finalScale;
-        const scaledHeight = logoActualHeight * finalScale;
-        const centerOffsetX = (availableWidth - scaledWidth) / 2;
-        const centerOffsetY = (availableHeight - scaledHeight) / 2;
-        
-        const nvidiaTransform = `translate(${nvidiaAreaX + LOGO_PADDING + centerOffsetX}, ${nvidiaAreaY + LOGO_PADDING + centerOffsetY}) scale(${finalScale})`;
-        nvidiaGroup.setAttribute('transform', nvidiaTransform);
-
-        // Copy NVIDIA logo elements
-        const nvidiaElements = logoSvg.children;
-        for (let i = 0; i < nvidiaElements.length; i++) {
-          const element = nvidiaElements[i].cloneNode(true) as Element;
-          nvidiaGroup.appendChild(element);
-        }
-        exportSvg.appendChild(nvidiaGroup);
-      } catch (error) {
-        console.warn('Could not load NVIDIA logo for export:', error);
-      }
-
-      // Separator (responsive to orientation)
-      const { lockupOrientation } = useLogoStore.getState();
-      const isHorizontal = lockupOrientation === 'horizontal';
-      const separatorHeight = isHorizontal ? 304 : 550; // 304px for horizontal, 550px for vertical
-      
-      const separatorRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-      separatorRect.setAttribute('x', String(SEPARATOR_X - SEPARATOR_WIDTH / 2));
-      separatorRect.setAttribute('y', String((CANVAS_HEIGHT - separatorHeight) / 2));
-      separatorRect.setAttribute('width', String(SEPARATOR_WIDTH));
-      separatorRect.setAttribute('height', String(separatorHeight));
-      separatorRect.setAttribute('fill', isDarkCanvas ? '#333333' : '#cccccc');
-      exportSvg.appendChild(separatorRect);
-
-      // Partner logo (if exists)
-      if (logoData) {
-        const { parseSVGBounds, fitIntoMask } = await import('../utils/logoProcessor');
-        const parser = new DOMParser();
-        const logoDoc = parser.parseFromString(logoData, 'image/svg+xml');
-        const logoSvg = logoDoc.documentElement;
-        
-        // Recalculate partner area positioning to match preview (same logic as LockupPreview)
-        const { lockupOrientation, logoOrder } = useLogoStore.getState();
-        const currentIsHorizontal = lockupOrientation === 'horizontal';
-        const currentIsNvidiaLeft = logoOrder === 'nvidia-left';
-        
-        // Use same constants as preview
-        const PREVIEW_PADDING = 50;
-        const HORIZONTAL_LOGO_WIDTH = 692;
-        const HORIZONTAL_LOGO_HEIGHT = 132;
-        const VERTICAL_LOGO_WIDTH = 480;
-        const VERTICAL_LOGO_HEIGHT = 370;
-        
-        // Calculate layout with current settings (same as preview)
-        const separatorX = CANVAS_WIDTH / 2;
-        const leftAreaWidth = separatorX - PREVIEW_PADDING * 2;
-        const rightAreaXStart = separatorX + SEPARATOR_WIDTH + PREVIEW_PADDING;
-        const rightAreaWidth = CANVAS_WIDTH - rightAreaXStart - PREVIEW_PADDING;
-        
-        let partnerArea;
-        if (currentIsHorizontal) {
-          if (currentIsNvidiaLeft) {
-            // Partner on right
-            partnerArea = {
-              x: rightAreaXStart + Math.max(0, (rightAreaWidth - HORIZONTAL_LOGO_WIDTH) / 2),
-              y: PREVIEW_PADDING + Math.max(0, (CANVAS_HEIGHT - PREVIEW_PADDING * 2 - HORIZONTAL_LOGO_HEIGHT) / 2),
-              width: HORIZONTAL_LOGO_WIDTH,
-              height: HORIZONTAL_LOGO_HEIGHT,
-            };
-          } else {
-            // Partner on left
-            partnerArea = {
-              x: PREVIEW_PADDING + Math.max(0, (leftAreaWidth - HORIZONTAL_LOGO_WIDTH) / 2),
-              y: PREVIEW_PADDING + Math.max(0, (CANVAS_HEIGHT - PREVIEW_PADDING * 2 - HORIZONTAL_LOGO_HEIGHT) / 2),
-              width: HORIZONTAL_LOGO_WIDTH,
-              height: HORIZONTAL_LOGO_HEIGHT,
-            };
-          }
-        } else {
-          if (currentIsNvidiaLeft) {
-            // Partner on right
-            partnerArea = {
-              x: rightAreaXStart + Math.max(0, (rightAreaWidth - VERTICAL_LOGO_WIDTH) / 2),
-              y: PREVIEW_PADDING + Math.max(0, (CANVAS_HEIGHT - PREVIEW_PADDING * 2 - VERTICAL_LOGO_HEIGHT) / 2),
-              width: VERTICAL_LOGO_WIDTH,
-              height: VERTICAL_LOGO_HEIGHT,
-            };
-          } else {
-            // Partner on left
-            partnerArea = {
-              x: PREVIEW_PADDING + Math.max(0, (leftAreaWidth - VERTICAL_LOGO_WIDTH) / 2),
-              y: PREVIEW_PADDING + Math.max(0, (CANVAS_HEIGHT - PREVIEW_PADDING * 2 - VERTICAL_LOGO_HEIGHT) / 2),
-              width: VERTICAL_LOGO_WIDTH,
-              height: VERTICAL_LOGO_HEIGHT,
-            };
-          }
-        }
-        
-        const partnerAreaCenter = [
-          partnerArea.x + partnerArea.width / 2,
-          partnerArea.y + partnerArea.height / 2,
-        ];
-        
-        function rectToPolygonPoints(x: number, y: number, width: number, height: number): [number, number][] {
-          return [
-            [x, y],
-            [x + width, y],
-            [x + width, y + height],
-            [x, y + height],
-          ];
-        }
-        
-        const partnerAreaPoints = rectToPolygonPoints(partnerArea.x, partnerArea.y, partnerArea.width, partnerArea.height);
-        
-        // Get logo bounds and recalculate transforms to match preview
-        let logoBounds;
-        if (logoData.includes('<svg')) {
-          logoBounds = parseSVGBounds(logoData);
-        } else {
-          logoBounds = getSVGDimensions(logoData);
-        }
-        
-        const { scale: newScale, offsetX: newOffsetX, offsetY: newOffsetY } = fitIntoMask(
-          logoBounds, 
-          partnerAreaPoints, 
-          partnerAreaCenter as [number, number], 
-          0, 
-          0
-        );
-        
-        // Apply current scale factor from UI
-        const currentScaleFactor = scaleFactor || 1;
-        const finalScale = newScale * currentScaleFactor;
-        
-        // Apply any manual positioning adjustments (nudging)
-        const manualOffsetX = offsetX - (useLogoStore.getState().initialTransform?.offsetX || 0);
-        const manualOffsetY = offsetY - (useLogoStore.getState().initialTransform?.offsetY || 0);
-        const finalOffsetX = newOffsetX + manualOffsetX;
-        const finalOffsetY = newOffsetY + manualOffsetY;
-        
-        const logoCenterX = logoBounds.minX + logoBounds.width / 2;
-        const logoCenterY = logoBounds.minY + logoBounds.height / 2;
-
-        // Create group for partner logo with recalculated transforms
-        const logoGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-        const transforms = [];
-        
-        // Apply transforms in same order as preview
-        if (finalOffsetX !== 0 || finalOffsetY !== 0) {
-          transforms.push(`translate(${finalOffsetX}, ${finalOffsetY})`);
-        }
-        
-        // Scale around logo's own center
-        if (finalScale !== 1) {
-          transforms.push(`translate(${logoCenterX}, ${logoCenterY})`);
-          transforms.push(`scale(${finalScale})`);
-          transforms.push(`translate(${-logoCenterX}, ${-logoCenterY})`);
-        }
-        
-        if (transforms.length > 0) {
-          logoGroup.setAttribute('transform', transforms.join(' '));
-        }
-
-        // Copy partner logo elements
-        const logoElements = logoSvg.children;
-        for (let i = 0; i < logoElements.length; i++) {
-          const element = logoElements[i].cloneNode(true) as Element;
-          logoGroup.appendChild(element);
-        }
-        exportSvg.appendChild(logoGroup);
-      }
-
-      // Create and download the file
-      await downloadSvgAsFormat(exportSvg, filename, format);
-    } catch (error) {
-      console.error('Export error:', error);
-      toast({
-        title: "Export failed",
-        description: "There was an error exporting your logo lockup.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  // Helper function to download SVG in different formats
-  const downloadSvgAsFormat = async (svgElement: SVGSVGElement, filename: string, format: string) => {
-    try {
-      if (format === 'svg') {
-        // SVG export
-        const svgString = new XMLSerializer().serializeToString(svgElement);
-        const blob = new Blob([svgString], { type: 'image/svg+xml' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${filename}.svg`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        
-        toast({
-          title: "Export successful",
-          description: `Your logo has been exported as SVG.`
-        });
-      } else {
-        // PNG/JPG export - clone SVG and modify for format
-        const svgClone = svgElement.cloneNode(true) as SVGSVGElement;
-        
-        // For PNG (transparent), remove background rect to make transparent
-        if (format === 'png') {
-          const bgRects = svgClone.querySelectorAll('rect[fill="#000000"], rect[fill="#ffffff"]');
-          bgRects.forEach(rect => {
-            const fill = rect.getAttribute('fill');
-            if (fill === '#000000' || fill === '#ffffff') {
-              rect.remove();
-            }
-          });
-        }
-        
-        const svgString = new XMLSerializer().serializeToString(svgClone);
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d')!;
-        const img = new Image();
-        
-        // Set canvas size to match SVG
-        const svgWidth = parseInt(svgElement.getAttribute('width') || '1250');
-        const svgHeight = parseInt(svgElement.getAttribute('height') || '700');
-        canvas.width = svgWidth;
-        canvas.height = svgHeight;
-        
-        // For JPG and PNG-BG, add white background; PNG stays transparent
-        if (format === 'jpg' || format === 'png-bg') {
-          ctx.fillStyle = '#ffffff';
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-        }
-        
-        img.onload = () => {
-          ctx.drawImage(img, 0, 0);
-          canvas.toBlob((blob) => {
-            if (blob) {
+      const filename = fileName.trim() || 'logo';
+      const blob = await exportLogo(useLogoStore.getState(), exportFormat);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-              const fileExtension = format === 'png-bg' ? 'png' : format;
-              a.download = `${filename}.${fileExtension}`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-              
-              const formatDisplay = format === 'png-bg' ? 'PNG (with Background)' : format.toUpperCase();
-      toast({
-        title: "Export successful",
-                description: `Your logo has been exported as ${formatDisplay}.`
-              });
-            }
-          }, `image/${format === 'png-bg' ? 'png' : format}`, 0.95);
-        };
-        
-        // Convert SVG to data URL for canvas
-        const svgBlob = new Blob([svgString], { type: 'image/svg+xml' });
-        const svgUrl = URL.createObjectURL(svgBlob);
-        img.src = svgUrl;
-      }
+      a.download = `${filename}.${exportFormat === 'png-bg' ? 'png' : exportFormat}`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setShowExportModal(false);
+      toast({ title: 'Export successful' });
     } catch (error) {
-      console.error('Export error:', error);
-      toast({
-        title: "Export failed",
-        description: "There was an error exporting your logo.",
-        variant: "destructive"
-      });
-    }
+      toast({ title: 'Export failed', description: error instanceof Error ? error.message : 'Please try again.', variant: 'destructive' });
+    } finally { setIsExporting(false); }
   };
 
   const handleNudge = (direction: 'up' | 'down' | 'left' | 'right', amount: number = 1) => {
     const deltaX = direction === 'left' ? -amount : direction === 'right' ? amount : 0;
     const deltaY = direction === 'up' ? -amount : direction === 'down' ? amount : 0;
     
+    const current = useLogoStore.getState();
     setTransform({
-      offsetX: offsetX + deltaX,
-      offsetY: offsetY + deltaY
+      offsetX: current.offsetX + deltaX,
+      offsetY: current.offsetY + deltaY
     });
   };
   return <div className="rounded-lg border border-border p-6 space-y-6 bg-[#0c0c0c]">
@@ -548,20 +116,14 @@ export function ControlPanel({ isLockupPage = false }: ControlPanelProps) {
           <div className="flex items-center space-x-3">
             <div className="w-12 h-12 bg-[#2a2a2a] border border-[#444444] rounded-lg flex items-center justify-center overflow-hidden">
               {logoData && (
-                <div 
-                  className="w-10 h-10 flex items-center justify-center"
-                  style={{
-                    transform: 'scale(0.8)',
-                    transformOrigin: 'center'
-                  }}
-                  dangerouslySetInnerHTML={{ __html: logoData }}
-                />
+                <img className="w-10 h-10 object-contain" alt="Uploaded logo"
+                  src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(logoData)}`} />
               )}
             </div>
             <div>
-              <h4 className="text-sm font-medium text-white">{logoFile.name}</h4>
+              <h4 className="text-sm font-medium text-white break-all">{logoFile.name}</h4>
               <p className="text-xs text-gray-400">
-                {logoFile.type === 'image/svg+xml' ? 'SVG' : 'PNG'} • {(logoFile.size / 1024).toFixed(1)}KB
+                {logoFile.name.split('.').pop()?.toUpperCase()} • {(logoFile.size / 1024).toFixed(1)}KB
               </p>
             </div>
           </div>
@@ -581,9 +143,10 @@ export function ControlPanel({ isLockupPage = false }: ControlPanelProps) {
         <div className="bg-[#1a1a1a] border border-[#333333] rounded-lg p-4 h-[80px] flex items-center justify-center">
           <input
             type="file"
-            accept=".svg,.png"
+            accept=".svg,.png,.jpg,.jpeg"
             onChange={(e) => {
               const file = e.target.files?.[0];
+              e.target.value = '';
               if (file) {
                 // This will be handled by the preview components
                 window.dispatchEvent(new CustomEvent('logoFileSelected', { detail: file }));
@@ -597,7 +160,7 @@ export function ControlPanel({ isLockupPage = false }: ControlPanelProps) {
             className="cursor-pointer text-center flex flex-col items-center justify-center space-y-1 hover:opacity-80 transition-opacity"
           >
             <div className="text-sm font-medium text-white">Upload from File</div>
-            <div className="text-xs text-gray-400">Accepted files: SVG or PNG</div>
+            <div className="text-xs text-gray-400">Accepted files: SVG, PNG, or JPG</div>
           </label>
         </div>
       )}
@@ -607,13 +170,13 @@ export function ControlPanel({ isLockupPage = false }: ControlPanelProps) {
         
         {/* Scale Slider */}
         <div className="space-y-2">
-          <Label htmlFor="scale">Scale: {Math.round((scaleFactor || 1) * 100)}%</Label>
+          <Label htmlFor="scale">Scale: {Math.round(scaleFactor * 100)}%</Label>
           <Slider
             id="scale"
-            min={0}
-            max={200}
+            min={1}
+            max={250}
             step={1}
-            value={[Math.round((scaleFactor || 1) * 100)]}
+            value={[Math.round(scaleFactor * 100)]}
             onValueChange={([value]) => setTransform({ scaleFactor: value / 100 })}
             className="w-full"
           />
@@ -717,7 +280,7 @@ export function ControlPanel({ isLockupPage = false }: ControlPanelProps) {
           </div>
         )}
         <div className="grid grid-cols-1 gap-3">
-          <Button onClick={handleExport} disabled={!logoData} className="w-full text-neutral-950">
+          <Button onClick={handleExport} disabled={!logoData || isProcessing || isExporting} className="w-full text-neutral-950">
             <Download className="mr-2 h-4 w-4" />
             Export
           </Button>
@@ -755,10 +318,10 @@ export function ControlPanel({ isLockupPage = false }: ControlPanelProps) {
                   <SelectValue placeholder="Select format" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="svg">SVG (Vector)</SelectItem>
+                  <SelectItem value="svg">SVG</SelectItem>
                   <SelectItem value="png">PNG (Transparent)</SelectItem>
                   <SelectItem value="png-bg">PNG (with Background)</SelectItem>
-                  <SelectItem value="jpg">JPG (White Background)</SelectItem>
+                  <SelectItem value="jpg">JPG (with Background)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -771,7 +334,7 @@ export function ControlPanel({ isLockupPage = false }: ControlPanelProps) {
             <Button variant="outline" onClick={() => setShowExportModal(false)}>
               Cancel
             </Button>
-            <Button onClick={handleConfirmExport} className="text-neutral-950">
+            <Button disabled={isExporting || isProcessing} onClick={handleConfirmExport} className="text-neutral-950">
               <Download className="mr-2 h-4 w-4" />
               Export
             </Button>

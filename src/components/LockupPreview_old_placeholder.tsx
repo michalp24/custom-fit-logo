@@ -64,7 +64,7 @@ export function LockupPreview() {
   const isHorizontal = lockupOrientation === 'horizontal';
   
   // Layout calculations
-  let nvidiaArea, separatorConfig, partnerArea, partnerAreaCenter, partnerAreaPoints;
+  let nvidiaArea, separatorConfig, partnerArea;
   
   if (isHorizontal) {
     // Horizontal layout: NVIDIA left, separator vertical, partner right
@@ -126,11 +126,11 @@ export function LockupPreview() {
     };
   }
   
-  partnerAreaCenter = [
+  const partnerAreaCenter: [number, number] = [
     partnerArea.x + partnerArea.width / 2,
     partnerArea.y + partnerArea.height / 2,
   ];
-  partnerAreaPoints = rectToPolygonPoints(partnerArea.x, partnerArea.y, partnerArea.width, partnerArea.height);
+  const partnerAreaPoints = rectToPolygonPoints(partnerArea.x, partnerArea.y, partnerArea.width, partnerArea.height);
 
   useEffect(() => {
     if (!svgRef.current) return;

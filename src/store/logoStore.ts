@@ -1,6 +1,12 @@
 import { create } from 'zustand';
+import { getLayout, fitBody, type Rect } from '@/utils/layout';
+import { normalizeSVG, parseSVGBounds, loadImageFromFile, getAlphaTightBounds } from '@/utils/logoProcessor';
 
 export interface LogoState {
+  bounds: Rect | null;
+  isPartner: boolean;
+  setMode: (partner: boolean) => void;
+  loadLogo: (file: File) => Promise<void>;
   // Logo data
   logoFile: File | null;
   logoData: string | null;
@@ -12,7 +18,7 @@ export interface LogoState {
   offsetY: number;
   padding: number; // deprecated, kept for compatibility but not used
   baseScale: number; // baseline scale (fit-to-guide)
-  scaleFactor: number; // 0.0 - 2.0 multiplier from UI slider
+  scaleFactor: number; // 0.01 - 2.5 multiplier from UI slider
   anchor: [number, number] | null; // logo bounds center
   
   // UI state
@@ -57,135 +63,92 @@ export interface LogoState {
   clearLogo: () => void;
 }
 
+
+let uploadVersion = 0;
+function fitted(state: LogoState) {
+  if (!state.bounds) return {};
+  const body = state.bounds;
+  const guide = getLayout(state.isPartner, state.lockupOrientation, state.logoOrder).body;
+  const scale = fitBody(body, guide);
+  const anchor: [number, number] = [body.x + body.width / 2, body.y + body.height / 2];
+  const offsetX = guide.x + guide.width / 2 - anchor[0];
+  const offsetY = guide.y + guide.height / 2 - anchor[1];
+  return { scale, baseScale: scale, scaleFactor: 1, offsetX, offsetY, anchor, initialTransform: { scale, offsetX, offsetY } };
+}
 export const useLogoStore = create<LogoState>((set, get) => ({
-  // Initial state
-  logoFile: null,
-  logoData: null,
-  logoType: null,
-  
-  scale: 1,
-  offsetX: 0,
-  offsetY: 0,
-  padding: 0,
-  baseScale: 1,
-  scaleFactor: 1,
-  anchor: null,
-  
-  showOutline: true,
-  showCanvas: false,
-  isProcessing: false,
-  isDarkCanvas: false,
-  lockupOrientation: 'vertical',
-  logoOrder: 'nvidia-left',
-
-  initialTransform: null,
-  
-  // Actions
-  setLogoFile: (file) => set({ logoFile: file }),
-  
-  setLogoData: (data, type) => set({ 
-    logoData: data, 
-    logoType: type,
-    isProcessing: false 
+  bounds: null, isPartner: false,
+  logoFile: null, logoData: null, logoType: null,
+  scale: 1, offsetX: 0, offsetY: 0, padding: 0, baseScale: 1, scaleFactor: 1, anchor: null,
+  showOutline: true, showCanvas: false, isProcessing: false, isDarkCanvas: false,
+  lockupOrientation: 'vertical', logoOrder: 'nvidia-right', initialTransform: null,
+  setMode: (isPartner) => set(state => { if (state.isPartner === isPartner) return {}; const next = { ...state, isPartner }; return { isPartner, ...fitted(next) }; }),
+  loadLogo: async (file) => {
+    const version = ++uploadVersion;
+    set({ isProcessing: true });
+    try {
+      let data: string;
+      const svg = file.type === 'image/svg+xml' || /\.svg$/i.test(file.name);
+      if (svg) data = normalizeSVG(await file.text());
+      else {
+        if (!/\.(png|jpe?g)$/i.test(file.name) && !['image/png', 'image/jpeg'].includes(file.type)) throw new Error('Please choose an SVG, PNG, or JPG file.');
+        const img = await loadImageFromFile(file);
+        const { canvas } = await getAlphaTightBounds(img);
+        // Preserve original pixels and colors. Automatic tracing can distort brand artwork.
+        data = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${canvas.width} ${canvas.height}"><image width="${canvas.width}" height="${canvas.height}" href="${canvas.toDataURL('image/png')}"/></svg>`;
+      }
+      const measured = parseSVGBounds(data);
+      if (version !== uploadVersion) return;
+      const bounds = { x: measured.minX, y: measured.minY, width: measured.width, height: measured.height };
+      const next = { ...get(), bounds };
+      set({ logoData: data, logoFile: file, logoType: svg ? 'svg' : 'raster', bounds, ...fitted(next) });
+    } finally { if (version === uploadVersion) set({ isProcessing: false }); }
+  },
+  setLogoFile: logoFile => set({ logoFile }),
+  setLogoData: (logoData, logoType) => set({ logoData, logoType, isProcessing: false }),
+  setAnchor: anchor => set({ anchor }),
+  setInitialTransform: initialTransform => set({ initialTransform }),
+  setTransform: patch => set(state => {
+    const next = { ...state, ...patch };
+    const scale = patch.scale ?? next.baseScale * next.scaleFactor;
+    if (!Number.isFinite(scale) || !Number.isFinite(next.offsetX) || !Number.isFinite(next.offsetY)) return {};
+    if (!Number.isFinite(next.baseScale) || next.baseScale <= 0) return {};
+    // The guide defines the initial fit; manual sizing and positioning may exceed it.
+    const scaleFactor = Math.max(0.01, Math.min(2.5, scale / next.baseScale));
+    return { ...patch, scale: next.baseScale * scaleFactor, scaleFactor };
   }),
-  
-  setTransform: (transform) => set((state) => {
-    const next = { ...state, ...transform } as LogoState;
-    // If baseScale or scaleFactor are provided without explicit scale, compute scale
-    const base = transform.baseScale !== undefined ? transform.baseScale : next.baseScale;
-    const factor = transform.scaleFactor !== undefined ? transform.scaleFactor : next.scaleFactor;
-    if (transform.baseScale !== undefined || transform.scaleFactor !== undefined) {
-      next.scale = base * factor;
+  setUI: patch => set(state => {
+    const next = { ...state, ...patch };
+    if (next.lockupOrientation !== state.lockupOrientation) return { ...patch, ...fitted(next) };
+    if (next.logoOrder !== state.logoOrder && state.bounds) {
+      // Move with the guide, retaining the user's scale and manual offset within it.
+      const previousGuide = getLayout(state.isPartner, state.lockupOrientation, state.logoOrder).body;
+      const nextGuide = getLayout(next.isPartner, next.lockupOrientation, next.logoOrder).body;
+      const dx = nextGuide.x + nextGuide.width / 2 - previousGuide.x - previousGuide.width / 2;
+      const dy = nextGuide.y + nextGuide.height / 2 - previousGuide.y - previousGuide.height / 2;
+      return {
+        ...patch,
+        offsetX: state.offsetX + dx,
+        offsetY: state.offsetY + dy,
+        initialTransform: state.initialTransform ? {
+          ...state.initialTransform,
+          offsetX: state.initialTransform.offsetX + dx,
+          offsetY: state.initialTransform.offsetY + dy,
+        } : null,
+      };
     }
-    return next;
+    return patch;
   }),
-  
-  setUI: (ui) => set((state) => ({
-    ...state,
-    ...ui
-  })),
-
-  setAnchor: (anchor) => set({ anchor }),
-
-  setInitialTransform: (t) => set({ initialTransform: { ...t } }),
-
-  restoreInitialTransform: () => set((state) => {
-    if (!state.initialTransform) return state;
-    const { scale, offsetX, offsetY } = state.initialTransform;
-    return { ...state, scale, offsetX, offsetY };
-  }),
-  
   center: () => {
     const state = get();
-    if (!state.logoData) return;
-    // If we have an initial transform, restore only the position (not scale)
-    if (state.initialTransform) {
-      const { offsetX, offsetY } = state.initialTransform;
-      set({ offsetX, offsetY });
-      return;
-    }
-    // Fallback: compute center based on current scale
-    try {
-      const { parseSVGBounds } = require('../utils/logoProcessor');
-      const { MASK_CENTER } = require('../utils/mask');
-      const bounds = parseSVGBounds(state.logoData);
-      const [centerX, centerY] = MASK_CENTER;
-      const logoCenterX = bounds.minX + bounds.width / 2;
-      const logoCenterY = bounds.minY + bounds.height / 2;
-      const offsetX = centerX - (logoCenterX * state.baseScale);
-      const offsetY = centerY - (logoCenterY * state.baseScale);
-      set({ offsetX, offsetY });
-    } catch (error) {
-      console.error('Error centering logo:', error);
-    }
+    if (!state.anchor) return;
+    const guide = getLayout(state.isPartner, state.lockupOrientation, state.logoOrder).body;
+    state.setTransform({ offsetX: guide.x + guide.width / 2 - state.anchor[0], offsetY: guide.y + guide.height / 2 - state.anchor[1] });
   },
-
-  reset: () => {
-    const state = get();
-    set({
-      scale: 1,
-      offsetX: 0,
-      offsetY: 0,
-      padding: 0,
-    });
-    
-    // After reset, center the logo
-    setTimeout(() => {
-      const newState = get();
-      if (newState.logoData) {
-        newState.center();
-      }
-    }, 0);
-  },
-
-  refit: () => {
-    const state = get();
-    if (!state.logoData) return;
-    
-    try {
-      const { parseSVGBounds, fitIntoMask } = require('../utils/logoProcessor');
-      const { MASK_POINTS, MASK_CENTER } = require('../utils/mask');
-      
-      const bounds = parseSVGBounds(state.logoData);
-      const { scale, offsetX, offsetY } = fitIntoMask(bounds, MASK_POINTS, MASK_CENTER, 0, 0);
-      
-      set({ baseScale: scale, scaleFactor: 1, scale, offsetX, offsetY });
-    } catch (error) {
-      console.error('Error refitting logo:', error);
-    }
-  },
-
-  clearLogo: () => set({
-    logoFile: null,
-    logoData: null,
-    logoType: null,
-    scale: 1,
-    offsetX: 0,
-    offsetY: 0,
-    baseScale: 1,
-    scaleFactor: 1,
-    anchor: null,
-    initialTransform: null,
-    isProcessing: false
-  }),
+  refit: () => set(state => fitted(state)),
+  reset: () => set(state => fitted(state)),
+  restoreInitialTransform: () => set(state => fitted(state)),
+  clearLogo: () => {
+    ++uploadVersion;
+    set({ logoFile: null, logoData: null, logoType: null, bounds: null, scale: 1, baseScale: 1, scaleFactor: 1, offsetX: 0, offsetY: 0, anchor: null, initialTransform: null, isProcessing: false });
+  }
 }));

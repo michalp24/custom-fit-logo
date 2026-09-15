@@ -16,14 +16,16 @@ export default function LogoExporter() {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target;
+      if (!useLogoStore.getState().logoData || e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey ||
+          (target instanceof HTMLElement && target.closest('input, textarea, select, [contenteditable], [role=slider], [role=dialog]'))) return;
       // Prevent default if we're handling the key
-      const isHandled = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'BracketLeft', 'BracketRight', 'KeyF'].includes(e.code);
+      const isHandled = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyF'].includes(e.code);
       if (isHandled) {
         e.preventDefault();
       }
 
       const nudgeAmount = e.shiftKey ? 10 : 1;
-      const rotateAmount = e.shiftKey ? 10 : 1;
 
       switch (e.code) {
         case 'ArrowUp':
