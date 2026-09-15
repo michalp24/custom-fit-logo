@@ -116,25 +116,25 @@ const { chromium } = require(process.env.PLAYWRIGHT_PATH || 'playwright');
     ]) {
       await store().loadLogo(new File([`<svg xmlns="http://www.w3.org/2000/svg">${artwork}</svg>`], `${name}.svg`, {type:'image/svg+xml'}));
       const initialScale = store().scale;
-      store().setTransform({scaleFactor:2.5});
-      check(store().scale <= initialScale, `Template ${name}: scaling stops at boundary`);
-      for (const [dx,dy] of [[0,0],[2000,0],[-4000,0],[0,-3000],[0,6000],[2000,-3000]]) {
-        const beforeNudge = store().scale;
-        store().setTransform({offsetX:store().offsetX+dx,offsetY:store().offsetY+dy});
-        check(Math.abs(store().scale-beforeNudge)<1e-8, `Template ${name}: boundary nudge preserves size (${dx},${dy})`);
-        const rendered = await pixels(await exportLogo(store(), 'png'));
-        check(rendered.c.width===1250 && rendered.c.height===703, 'Template uses supplied canvas dimensions');
-        const data=rendered.ctx.getImageData(0,0,1250,703).data;
-        let outside=0,visible=0;
-        for(let y=0;y<703;y++) for(let x=0;x<1250;x++) {
-          if(data[(y*1250+x)*4+3]<128) continue;
-          visible++;
-          if(!rendered.ctx.isPointInPath(templatePath,x+0.5,y+0.5)) outside++;
-        }
-        check(visible>100 && outside===0, `Template ${name}: whole exported artwork inside supplied shape (${dx},${dy})`);
+      const rendered = await pixels(await exportLogo(store(), 'png'));
+      check(rendered.c.width===1250 && rendered.c.height===703, 'Template uses supplied canvas dimensions');
+      const data=rendered.ctx.getImageData(0,0,1250,703).data;
+      let outside=0,visible=0;
+      for(let y=0;y<703;y++) for(let x=0;x<1250;x++) {
+        if(data[(y*1250+x)*4+3]<128) continue;
+        visible++;
+        if(!rendered.ctx.isPointInPath(templatePath,x+0.5,y+0.5)) outside++;
       }
+      check(visible>100 && outside===0, `Template ${name}: initial fit stays inside supplied shape`);
+      store().setTransform({scaleFactor:2.5});
+      check(store().scale === initialScale*2.5 && store().scaleFactor===2.5, `Template ${name}: manual scaling reaches 250%`);
+      const x=store().offsetX, y=store().offsetY;
+      store().setTransform({offsetX:x+15,offsetY:y-10});
+      check(store().offsetX===x+15 && store().offsetY===y-10 && store().scale===initialScale*2.5, `Template ${name}: manual positioning remains free at 250%`);
       const exportedDoc = new DOMParser().parseFromString(await (await exportLogo(store(),'svg')).text(),'image/svg+xml');
-      check(!exportedDoc.querySelector('[data-main-guide], clipPath'), 'Template export fits artwork without guide or clipping');
+      check(!exportedDoc.querySelector('[data-main-guide], clipPath'), 'Template export has no guide or clipping');
+      const transform=exportedDoc.querySelector('[data-partner]').getAttribute('transform');
+      check(transform.includes(`scale(${store().scale})`) && transform.includes(`translate(${store().offsetX} ${store().offsetY})`), 'Template export preserves enlargement and positioning');
     }
     // A tiny valid SVG must scale above the old arbitrary 10x ceiling.
     await store().loadLogo(new File(['<svg xmlns="http://www.w3.org/2000/svg"><rect width="1" height="1"/></svg>'], 'tiny.svg', {type:'image/svg+xml'}));
@@ -246,9 +246,25 @@ const { chromium } = require(process.env.PLAYWRIGHT_PATH || 'playwright');
   assert.deepEqual(await placement(), beforeFilename);
   await page.getByRole('button', {name:'Cancel',exact:true}).click();
   await page.getByRole('dialog').waitFor({state:'hidden'});
+  const templateUrl = new URL(testUrl); templateUrl.searchParams.set('logo','default');
+  await page.goto(templateUrl.href);
+  await page.locator('#upload-input').setInputFiles({name:'template-test.svg',mimeType:'image/svg+xml',buffer:Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><rect width="200" height="80"/></svg>')});
+  await page.waitForSelector('[data-partner]');
+  const templateSlider=page.getByRole('slider');
+  assert.equal(await templateSlider.getAttribute('aria-valuemax'),'250');
+  const fittedPlacement=await placement();
+  await templateSlider.focus(); await templateSlider.press('End');
+  assert.equal(await templateSlider.getAttribute('aria-valuenow'),'250');
+  const enlargedPlacement=await placement();
+  assert.ok(Math.abs(enlargedPlacement.scale/fittedPlacement.scale-2.5)<1e-6);
+  await page.getByRole('button',{name:'→',exact:true}).click();
+  assert.ok(Math.abs((await placement()).x-enlargedPlacement.x-5)<1e-6);
+  await page.keyboard.press('KeyF');
+  assert.equal(await templateSlider.getAttribute('aria-valuenow'),'100');
+  assert.ok(Math.abs((await placement()).scale-fittedPlacement.scale)<1e-6);
   await page.screenshot({path:'/tmp/logo-exporter-reviewed.png', fullPage:true});
   assert.deepEqual(errors, []);
-  console.log(JSON.stringify({passed:[...result,'Exclude controls removed','Slider reaches 250% and enlarges preview','Position buttons work at 100% and 250%','Keyboard nudging works with a position button focused','Center preserves scale','Clicking canvas restores keyboard positioning','Same-mode initialization preserves adjustments','Repeated side swaps preserve scale and relative position in both layouts','Export matches manual positioning','Filename keyboard editing','No browser errors']},null,2));
+  console.log(JSON.stringify({passed:[...result,'Exclude controls removed','Slider reaches 250% and enlarges preview','Position buttons work at 100% and 250%','Keyboard nudging works with a position button focused','Center preserves scale','Clicking canvas restores keyboard positioning','Same-mode initialization preserves adjustments','Repeated side swaps preserve scale and relative position in both layouts','Export matches manual positioning','Filename keyboard editing','Template slider reaches 250%, nudges freely, and refits to 100%','No browser errors']},null,2));
   await browser.close();
   if (server) await server.close();
 })().catch(e => { console.error(e); process.exit(1); });

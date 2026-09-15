@@ -59,21 +59,3 @@ export function fitTemplate(bounds: Rect, offsetX: number, offsetY: number): num
   }
   return low * 0.999; // Keep artwork just inside the redline.
 }
-
-export function constrainTemplate(bounds: Rect, previous: { scale: number; offsetX: number; offsetY: number }, requested: { scale: number; offsetX: number; offsetY: number }) {
-  const scale = requested.scale > previous.scale * (1 + 1e-12)
-    ? Math.min(requested.scale, fitTemplate(bounds, previous.offsetX, previous.offsetY))
-    : requested.scale;
-  if (insideTemplate(placedBounds(bounds, scale, requested.offsetX, requested.offsetY))) return { ...requested, scale };
-  // Stop a nudge at the boundary rather than crop or shrink the artwork to move it.
-  let low = 0, high = 1;
-  for (let i = 0; i < 50; i++) {
-    const t = (low + high) / 2;
-    const x = previous.offsetX + (requested.offsetX - previous.offsetX) * t;
-    const y = previous.offsetY + (requested.offsetY - previous.offsetY) * t;
-    if (insideTemplate(placedBounds(bounds, scale, x, y))) low = t;
-    else high = t;
-  }
-  return { scale, offsetX: previous.offsetX + (requested.offsetX - previous.offsetX) * low,
-    offsetY: previous.offsetY + (requested.offsetY - previous.offsetY) * low };
-}

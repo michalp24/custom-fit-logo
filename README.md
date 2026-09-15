@@ -76,9 +76,10 @@ Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-trick
 
 The Logo Template page uses the supplied `src/assets/logo-template.svg` silhouette
 and its 1250 × 703 canvas. Initial fitting keeps the complete artwork bounds inside
-the shape, including conservative allowance for SVG strokes. Scale is limited to
-the fitted size, and nudges stop at the boundary without cropping the artwork.
-The guide does not appear in exports. Partner Lockup keeps its separate rectangular
+the shape, including conservative allowance for SVG strokes. As with Partner Lockup,
+the slider supports 1–250% and positioning is unrestricted. The shape is a visual
+guide after the initial fit, not a clipping boundary. Exports preserve manual
+adjustments and omit the guide. Partner Lockup keeps its separate rectangular
 guides, free positioning, and 250% scaling.
 
 ## Logo body fitting

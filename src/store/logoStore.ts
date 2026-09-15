@@ -1,4 +1,4 @@
-import { constrainTemplate, fitTemplate } from '@/utils/templateFit';
+import { fitTemplate } from '@/utils/templateFit';
 import { create } from 'zustand';
 import { getLayout, fitBody, type Rect } from '@/utils/layout';
 import { normalizeSVG, parseSVGBounds, loadImageFromFile, getAlphaTightBounds } from '@/utils/logoProcessor';
@@ -115,11 +115,7 @@ export const useLogoStore = create<LogoState>((set, get) => ({
     if (!Number.isFinite(scale) || !Number.isFinite(next.offsetX) || !Number.isFinite(next.offsetY)) return {};
     if (!Number.isFinite(next.baseScale) || next.baseScale <= 0) return {};
     // The guide defines the initial fit; manual sizing and positioning may exceed it.
-    const scaleFactor = Math.max(0.01, Math.min(state.isPartner ? 2.5 : 1, scale / next.baseScale));
-    if (!state.isPartner && state.bounds) {
-      const constrained = constrainTemplate(state.bounds, state, { scale: next.baseScale * scaleFactor, offsetX: next.offsetX, offsetY: next.offsetY });
-      return { ...patch, ...constrained, scaleFactor: constrained.scale / next.baseScale };
-    }
+    const scaleFactor = Math.max(0.01, Math.min(2.5, scale / next.baseScale));
     return { ...patch, scale: next.baseScale * scaleFactor, scaleFactor };
   }),
   setUI: patch => set(state => {
